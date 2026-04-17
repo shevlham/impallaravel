@@ -1,0 +1,23 @@
+<?php
+// app/Models/User.php
+
+namespace App\Models;
+
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
+
+class User extends Authenticatable
+{
+    use HasApiTokens, Notifiable;
+
+    protected $fillable = ['username', 'password', 'role'];
+
+    protected $hidden = ['password'];
+
+    protected $casts = ['password' => 'hashed'];
+
+    public function admin()    { return $this->hasOne(Admin::class); }
+    public function merchant() { return $this->hasOne(Merchant::class); }
+    public function pelanggan(){ return $this->hasOne(Pelanggan::class); }
+}
