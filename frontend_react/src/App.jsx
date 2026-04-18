@@ -292,7 +292,7 @@ function GoogleSignInBtn() {
       if (ref.current) {
         window.google.accounts.id.renderButton(ref.current, {
           theme:"outline", size:"large", width:360, shape:"rectangular",
-          text:"continue_with", logo_alignment:"left",
+          text:"continue_with", logo_alignment:"center"
         });
       }
       setLoaded(true);
@@ -360,6 +360,11 @@ function AuthShell({ children }) {
       <div className="hide-mobile" style={{
         width:"42%", minHeight:"100vh",
         background:`linear-gradient(160deg, ${C.blueDark} 0%, ${C.blue} 55%, ${C.blueMid} 100%)`,
+
+        display: "flex",
+        alignItems:"center",
+        justifyContent:"center",
+
         padding:"48px 44px", display:"flex", flexDirection:"column", justifyContent:"space-between",
         position:"relative", overflow:"hidden",
       }}>
@@ -369,8 +374,8 @@ function AuthShell({ children }) {
 
         <div style={{ display:"flex", alignItems:"center", gap:10, position:"relative" }}>
           <div style={{
-            width:44,
-            height:44,
+            width:200,
+            height:200,
             borderRadius:13,
             overflow:"hidden",   // biar rapi
             display:"flex",
@@ -380,14 +385,20 @@ function AuthShell({ children }) {
             <img 
               src="/logo.png" 
               alt="logo" 
-              style={{ width:"100%", height:"100%", objectFit:"cover" }}
+              style={{
+                width: 200,
+                height: 200,
+                borderRadius: 13,
+                overflow: "hidden",
+                boxShadow: "0 12px 30px rgba(0,0,0,0.2), 0 0 20px rgba(255,255,255,0.5)",
+                transition: "all 0.3s ease"
+              }}
             />
           </div>
-          <span style={{ fontFamily:"'Sora',sans-serif", fontWeight:800, fontSize:22, color:C.white }}>TelEat</span>
         </div>
 
         <div style={{ position:"relative" }}>
-          <h2 style={{ fontFamily:"'Sora',sans-serif", fontWeight:800, fontSize:36, color:C.white, lineHeight:1.25, marginBottom:16 }}>
+          <h2 style={{ fontFamily:"'Sora',sans-serif", fontWeight:800, fontSize:34, color:C.white, lineHeight:1.25, marginBottom:16 }}>
             Pesan makanan<br />favoritmu,<br /><span style={{ color:`${C.redLight}` }}>kapan saja.</span>
           </h2>
           <p style={{ color:"rgba(255,255,255,.65)", fontSize:15, lineHeight:1.7, marginBottom:32 }}>
@@ -428,7 +439,14 @@ function AuthShell({ children }) {
               <img 
                 src="/logo.png" 
                 alt="logo" 
-                style={{ width:"100%", height:"100%", objectFit:"cover" }}
+                style={{
+                  width: 200,
+                  height: 200,
+                  borderRadius: 13,
+                  overflow: "hidden",
+                  boxShadow: "0 12px 30px rgba(0,0,0,0.2), 0 0 20px rgba(255,255,255,0.5)",
+                  transition: "all 0.3s ease"
+                }}
               />
             </div>
             <div style={{ fontFamily:"'Sora',sans-serif", fontWeight:800, fontSize:22, color:C.gray900 }}>TelEat</div>
@@ -466,9 +484,6 @@ function LoginPage({ onSwitch }) {
       <h1 style={{ fontFamily:"'Sora',sans-serif", fontWeight:800, fontSize:26, color:C.gray900, marginBottom:4 }}>Masuk</h1>
       <p style={{ color:C.gray400, fontSize:14, marginBottom:24 }}>Senang melihatmu lagi!</p>
 
-      <GoogleSignInBtn />
-      <Divider />
-
       <form onSubmit={submit}>
         <Inp label="Username" placeholder="Masukkan username"
           value={form.username} onChange={e => setForm({...form, username:e.target.value})} required />
@@ -485,6 +500,9 @@ function LoginPage({ onSwitch }) {
             }}>{showPw ? "🙈" : "👁"}</button>
           </div>
         </div>
+
+        <Divider />
+        <GoogleSignInBtn />
 
         <BtnRed full disabled={loading}>
           {loading ? "Masuk…" : "Masuk"}
@@ -526,9 +544,6 @@ function RegisterPage({ onSwitch }) {
       <h1 style={{ fontFamily:"'Sora',sans-serif", fontWeight:800, fontSize:26, color:C.gray900, marginBottom:4 }}>Daftar</h1>
       <p style={{ color:C.gray400, fontSize:14, marginBottom:24 }}>Buat akun baru gratis!</p>
 
-      <GoogleSignInBtn />
-      <Divider />
-
       <form onSubmit={submit}>
         <Inp label="Nama Lengkap / Nama Warung" placeholder="Nama kamu"
           value={form.nama} onChange={e => setForm({...form, nama:e.target.value})} required />
@@ -557,8 +572,11 @@ function RegisterPage({ onSwitch }) {
           </div>
         </div>
 
+        <Divider />
+        <GoogleSignInBtn />
+
         <BtnRed full disabled={loading}>
-          {loading ? "Mendaftar…" : "Buat Akun →"}
+          {loading ? "Mendaftar…" : "Buat Akun"}
         </BtnRed>
       </form>
 
@@ -600,7 +618,14 @@ function Navbar({ page, setPage }) {
             <img 
               src="/logo.png" 
               alt="logo" 
-              style={{ width:"100%", height:"100%", objectFit:"cover" }}
+              style={{
+                width: 50,
+                height: 50,
+                borderRadius: 13,
+                overflow: "hidden",
+                boxShadow: "0 12px 30px rgba(0,0,0,0.2), 0 0 20px rgba(255,255,255,0.5)",
+                transition: "all 0.3s ease"
+              }}
             />
           </div>
           <span style={{ fontFamily:"'Sora',sans-serif", fontWeight:800, fontSize:19, color:C.gray900 }}>TelEat</span>
