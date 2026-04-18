@@ -9,16 +9,18 @@ use App\Models\Merchant;
 use App\Models\Pelanggan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
+use Laravel\Socialite\Facades\Socialite;
 
 class AuthController extends Controller
 {
     public function register(Request $request)
     {
         $request->validate([
-            'username'  => 'required|unique:users',
-            'password'  => 'required|min:4',
-            'role'      => 'required|in:ADMIN,MERCHANT,PELANGGAN',
-            'nama'      => 'required|string',
+            'nama'     => 'required|string|max:100',
+            'username' => 'required|string|unique:users,username|max:50',
+            'password' => 'required|string|min:6',
+            'role'     => 'required|in:ADMIN,PELANGGAN,MERCHANT',
         ]);
 
         $user = User::create([
@@ -47,8 +49,8 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $request->validate([
-            'username' => 'required',
-            'password' => 'required',
+            'username' => 'required|string',
+            'password' => 'required|string',
         ]);
 
         $user = User::where('username', $request->username)->first();
@@ -65,6 +67,61 @@ class AuthController extends Controller
             'success' => true,
             'token'   => $token,
             'user'    => $this->userWithProfile($user),
+        ]);
+    }
+    
+    public function googleCallback(Request $request)
+    {
+        $request->validate([
+            'id_token' => 'required|string',
+        ]);
+
+        try {
+            // Verifikasi id_token ke Google dan ambil data user
+            $googleUser = Socialite::driver('google')
+                ->stateless()
+                ->userFromToken($request->id_token);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Token Google tidak valid: ' . $e->getMessage()
+            ], 401);
+        }
+
+        // Cari atau buat user berdasarkan google_id atau email
+        $user = User::where('google_id', $googleUser->getId())
+                    ->orWhere('email', $googleUser->getEmail())
+                    ->first();
+
+        if ($user) {
+            // Update google_id jika belum ada (user lama yg daftar email)
+            if (! $user->google_id) {
+                $user->update(['google_id' => $googleUser->getId()]);
+            }
+        } else {
+            // Buat user baru dari akun Google
+            $username = $this->generateUsername($googleUser->getEmail(), $googleUser->getName());
+
+            $user = User::create([
+                'username'  => $username,
+                'email'     => $googleUser->getEmail(),
+                'password'  => Hash::make(Str::random(24)), // random password (tidak dipakai)
+                'google_id' => $googleUser->getId(),
+                'role'      => 'PELANGGAN', // default role untuk Google sign-up
+            ]);
+
+            // Buat profile pelanggan
+            $user->pelanggan()->create([
+                'nama'      => $googleUser->getName(),
+                'foto'      => $googleUser->getAvatar(),
+            ]);
+        }
+
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        return response()->json([
+            'user'  => $user->load('profile'),
+            'token' => $token,
         ]);
     }
 
@@ -96,5 +153,16 @@ class AuthController extends Controller
             'role'     => $user->role,
             'profile'  => $profile,
         ];
+    }
+
+     private function generateUsername(string $email, string $name): string
+    {
+        // Coba pakai bagian depan email dulu
+        $base = Str::slug(explode('@', $email)[0], '_');
+        if (! User::where('username', $base)->exists()) {
+            return $base;
+        }
+        // Kalau sudah ada, tambah angka random
+        return $base . '_' . rand(100, 9999);
     }
 }

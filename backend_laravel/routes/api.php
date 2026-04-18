@@ -12,6 +12,7 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login',    [AuthController::class, 'login']);
 Route::get('/menus',     [MenuController::class, 'index']);
 Route::get('/menus/{id}',[MenuController::class, 'show']);
+Route::post('/auth/google/callback', [AuthController::class, 'googleCallback']);
 
 // ─── AUTH REQUIRED ───────────────────────────
 Route::middleware('auth:sanctum')->group(function () {
