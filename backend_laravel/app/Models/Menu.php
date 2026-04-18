@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-
 use Illuminate\Database\Eloquent\Model;
 
 class Menu extends Model
@@ -13,4 +12,9 @@ class Menu extends Model
         'stok',
         'merchant_id'
     ];
+
+    public function merchant()
+    {
+        return $this->belongsTo(Merchant::class);
+    }
 }

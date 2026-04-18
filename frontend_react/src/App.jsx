@@ -61,6 +61,29 @@ const GLOBAL_CSS = `
 
   @media (max-width: 767px)  { .hide-mobile  { display: none !important; } }
   @media (min-width: 768px)  { .hide-desktop { display: none !important; } }
+  @media (max-width: 767px) {
+  .auth-right-mobile-center {
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+  }
+
+  .auth-inner-mobile {
+    width: 100% !important;
+    max-width: 420px !important;
+    margin: 0 auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center !important;
+  }
+
+  .auth-logo-mobile {
+    display: flex !important;
+    justify-content: center !important;
+    margin-bottom: 20px !important;
+  }
+}
 `;
 
 // ─── CONTEXTS ─────────────────────────────────────────────────────────────────
@@ -317,7 +340,7 @@ function GoogleSignInBtn() {
 
   return (
     <div style={{ width:"100%", minHeight:44 }}>
-      <div ref={ref} style={{ width:"100%" }} />
+      <div ref={ref} style={{ width:"100%", display:"flex", justifyContent:"center" }} />
       {!loaded && (
         <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, color:C.gray400, fontSize:13, height:44 }}>
           <Spinner size={16} /> Memuat Google…
@@ -353,6 +376,13 @@ function Divider() {
 // ═══════════════════════════════════════════════════════════════════════
 
 function AuthShell({ children }) {
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const fn = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+    }, []);
   return (
     <div style={{ minHeight:"100vh", display:"flex" }}>
 
@@ -377,7 +407,7 @@ function AuthShell({ children }) {
             width:200,
             height:200,
             borderRadius:13,
-            overflow:"hidden",   // biar rapi
+            overflow:"hidden", 
             display:"flex",
             alignItems:"center",
             justifyContent:"center",
@@ -421,37 +451,54 @@ function AuthShell({ children }) {
 
         <p style={{ color:"rgba(255,255,255,.3)", fontSize:12, position:"relative" }}>© 2025 TelEat. All rights reserved.</p>
       </div>
-
       {/* RIGHT: form panel */}
-      <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", padding:"32px 20px", background:C.offWhite, overflowY:"auto" }}>
-        <div style={{ width:"100%", maxWidth:400, animation:"fadeUp .35s ease" }}>
+      <div
+        className="auth-right-mobile-center"
+        style={{
+          flex: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "32px 20px",
+          background: C.offWhite,
+          overflowY: "auto",
+        }}
+      >
+        <div
+          className="auth-inner-mobile"
+          style={{
+            width: "100%",
+            maxWidth: 420,
+            margin: "0 auto",
+            padding: "0 12px",
+            animation: "fadeUp .35s ease",
+          }}
+        >
           {/* Mobile brand */}
-          <div className="hide-desktop" style={{ textAlign:"center", marginBottom:28 }}>
-            <div style={{
-              width:44,
-              height:44,
-              borderRadius:13,
-              overflow:"hidden",   // biar rapi
-              display:"flex",
-              alignItems:"center",
-              justifyContent:"center",
-            }}>
-              <img 
-                src="/logo.png" 
-                alt="logo" 
+          <div className="hide-desktop auth-logo-mobile">
+            <div
+              style={{
+                width: isMobile ? 120 : 64,
+                height: isMobile ? 120 : 64,
+                borderRadius: 16,
+                overflow: "hidden",
+              }}
+            >
+              <img
+                src="/logo.png"
+                alt="logo"
                 style={{
-                  width: 200,
-                  height: 200,
+                  width: "100%",
+                  height: "100%",
                   borderRadius: 13,
-                  overflow: "hidden",
-                  boxShadow: "0 12px 30px rgba(0,0,0,0.2), 0 0 20px rgba(255,255,255,0.5)",
-                  transition: "all 0.3s ease"
+                  boxShadow:
+                    "0 12px 30px rgba(0,0,0,0.2), 0 0 20px rgba(255,255,255,0.5)",
                 }}
               />
             </div>
-            <div style={{ fontFamily:"'Sora',sans-serif", fontWeight:800, fontSize:22, color:C.gray900 }}>TelEat</div>
           </div>
-          {children}
+    {/* FORM CONTENT */}
+    {children}
         </div>
       </div>
     </div>
@@ -610,7 +657,7 @@ function Navbar({ page, setPage }) {
             width:44,
             height:44,
             borderRadius:13,
-            overflow:"hidden",   // biar rapi
+            overflow:"hidden",
             display:"flex",
             alignItems:"center",
             justifyContent:"center",
@@ -700,7 +747,7 @@ function MenuCard({ m, role, onEdit, onDel, onCart }) {
   return (
     <div className="card-hover" style={{ background:C.white, borderRadius:16, overflow:"hidden", border:`1px solid ${C.gray100}`, boxShadow:"0 2px 8px rgba(15,23,42,.06)" }}>
       <div style={{ height:120, position:"relative", background:`linear-gradient(135deg, ${C.blueLight}, ${C.redLight})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:44 }}>
-        {m.foto_url && <img src={m.foto_url} alt={m.nama_menu} style={{ width:"100%", height:"100%", objectFit:"cover", position:"absolute", inset:0 }} />}
+        {m.foto_url && <img src={`http://localhost:8000/storage/${m.gambar}`} alt={m.nama_menu} style={{ width:"100%", height:"100%", objectFit:"cover", position:"absolute", inset:0 }} />}
         {!m.foto_url && "🍽️"}
         {!inStock && (
           <div style={{ position:"absolute", inset:0, background:"rgba(15,23,42,.5)", display:"flex", alignItems:"center", justifyContent:"center" }}>
@@ -768,12 +815,42 @@ function MenuPage() {
     .filter(m => m.nama_menu?.toLowerCase().includes(search.toLowerCase()));
 
   const saveMenu = async e => {
-    e.preventDefault();
-    try {
-      if (editId) { await apiFetch("PUT",  `/menus/${editId}`, form, token); toast("Menu diperbarui!"); }
-      else        { await apiFetch("POST", "/menus", form, token);            toast("Menu ditambahkan! 🎉"); }
-      setMenuModal(false); load();
-    } catch (er) { toast(er.message, "error"); }
+  e.preventDefault();
+
+  try {
+    const fd = new FormData();
+    fd.append("nama_menu", form.nama_menu);
+    fd.append("harga", form.harga);
+    fd.append("stok", form.stok);
+
+    if (form.gambar) {
+      fd.append("gambar", form.gambar);
+    }
+
+    const res = await fetch(API_URL + (editId ? `/menus/${editId}` : "/menus"), {
+      method: editId ? "POST" : "POST", 
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: (() => {
+        if (editId) {
+          fd.append("_method", "PUT");
+        }
+        return fd;
+      })(),
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message);
+
+    toast(editId ? "Menu diperbarui!" : "Menu ditambahkan! 🎉");
+
+    setMenuModal(false);
+    load();
+
+    } catch (er) {
+    toast(er.message, "error");
+    }
   };
 
   const delMenu = async id => {
@@ -846,6 +923,14 @@ function MenuPage() {
           <Inp label="Nama Menu" placeholder="Contoh: Nasi Goreng Spesial" value={form.nama_menu} onChange={e=>setForm({...form,nama_menu:e.target.value})} required />
           <Inp label="Harga (Rp)" type="number" placeholder="15000"        value={form.harga}     onChange={e=>setForm({...form,harga:e.target.value})}     required />
           <Inp label="Stok"       type="number" placeholder="10"           value={form.stok}      onChange={e=>setForm({...form,stok:e.target.value})}      required />
+          <div style={{ marginBottom:16 }}>
+          <label style={labelStyle}>Gambar Menu</label>
+          <input 
+            type="file" 
+            accept="image/*"
+            onChange={e => setForm({...form, gambar: e.target.files[0]})}
+          />
+          </div>
           <div style={{ display:"flex", gap:10 }}>
             <BtnRed full>Simpan</BtnRed>
             <BtnGhost full onClick={() => setMenuModal(false)}>Batal</BtnGhost>

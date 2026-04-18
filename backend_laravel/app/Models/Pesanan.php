@@ -2,20 +2,14 @@
 
 namespace App\Models;
 
-class Pesanan
+use Illuminate\Database\Eloquent\Model;
+
+class Pesanan extends Model
 {
-    public int $idPesanan;
-    public float $totalHarga;
-    public string $status;
+    protected $table = 'pesanans';
 
-    public function hitungTotal()
-    {
-        echo "Total harga: " . $this->totalHarga . "\n";
-    }
-
-    public function updateStatus($status)
-    {
-        $this->status = $status;
-        echo "Status pesanan: " . $status . "\n";
-    }
+    protected $fillable = [
+        'totalHarga',
+        'status',
+    ];
 }

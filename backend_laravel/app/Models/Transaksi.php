@@ -2,30 +2,22 @@
 
 namespace App\Models;
 
-class Transaksi
+use Illuminate\Database\Eloquent\Model;
+
+class Transaksi extends Model
 {
-    public int $idTransaksi;
-    public string $status;
-    public string $metodeBayar;
-    public ?Pesanan $pesanan = null;
+    protected $table = 'transaksis'; // sesuaikan nama tabel di DB kamu
 
-    public function prosesTransaksi()
+    protected $fillable = [
+        'pesanan_id',
+        'total_bayar',
+        'status_bayar',
+        'metode_bayar',
+    ];
+
+    // relasi ke pesanan
+    public function pesanan()
     {
-        echo "Memproses transaksi ID: {$this->idTransaksi}\n";
-
-        if ($this->pesanan && $this->pesanan->totalHarga > 0) {
-            $this->status = "SELESAI";
-            $this->pesanan->updateStatus("SELESAI");
-
-            echo "Transaksi berhasil dengan metode: {$this->metodeBayar}\n";
-        } else {
-            $this->status = "GAGAL";
-
-            if ($this->pesanan) {
-                $this->pesanan->updateStatus("GAGAL");
-            }
-
-            echo "Transaksi gagal!\n";
-        }
+        return $this->belongsTo(Pesanan::class);
     }
 }
