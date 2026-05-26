@@ -13,6 +13,7 @@ class Pesanan extends Model
         'merchant_id',
         'totalHarga',
         'status',
+        'catatan',
     ];
 
     public function pelanggan()

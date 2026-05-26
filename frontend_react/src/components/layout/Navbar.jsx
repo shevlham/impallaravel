@@ -35,7 +35,7 @@ export default function Navbar() {
     <>
         {/* Desktop Navbar */}
         <header className="hide-mobile" style={{ position: "sticky", top: 0, zIndex: 200, background: C.white, borderBottom: `1px solid ${C.gray100}`, boxShadow: "0 1px 8px rgba(15,23,42,.06)" }}>
-        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 20px", height: 62, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{  margin: "0 auto", padding: "0 20px", height: 62, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
             <div style={{ width: 44, height: 44, borderRadius: 13, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <img src="/logo.png" alt="logo" style={{ width: 50, height: 50, borderRadius: 13, overflow: "hidden", boxShadow: "0 12px 30px rgba(0,0,0,0.2), 0 0 20px rgba(255,255,255,0.5)" }} />
@@ -43,7 +43,7 @@ export default function Navbar() {
             <span style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 19, color: C.gray900 }}>TelEat</span>
             </div>
 
-            <nav style={{ display: "flex", gap: 4 }}>
+            <nav style={{ display: "flex", gap: 70 }}>
             {links.map(l => (
                 <NavLink key={l.path} to={l.path} className="btn-hover" style={navBtnStyle}>
                     {l.icon} {l.label}

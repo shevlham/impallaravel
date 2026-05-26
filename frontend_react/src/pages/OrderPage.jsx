@@ -26,7 +26,9 @@ export default function OrderPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try { 
-        const r = await apiFetch("GET", "/pesanans", null, token); 
+        const r = await apiFetch("GET", "/pesanans", null, token);
+        console.log(r.data);
+        console.log(r.data[0]?.catatan); 
         setList(r.data); 
     } catch (e) { 
         toast(e.message, "error"); 
@@ -48,6 +50,13 @@ export default function OrderPage() {
   };
 
   const shown = filter === "SEMUA" ? list : list.filter(p => p.status === filter);
+  
+  // tampil gambar menu 
+  const getImageUrl = (gambar) => {
+    if (!gambar) return null;
+    if (gambar.startsWith('http')) return gambar;
+    return `http://localhost:8000/storage/${gambar}`;
+  };
 
   return (
     <div className="page-enter">
@@ -81,15 +90,83 @@ export default function OrderPage() {
                     </div>
                     <span style={{ padding: "4px 12px", borderRadius: 99, fontSize: 11, fontWeight: 700, color: sc.color, background: sc.bg }}>{p.status}</span>
                   </div>
-
+                  
                   <div style={{ borderTop: `1px solid ${C.gray100}`, paddingTop: 10, marginBottom: 12 }}>
                     {p.details?.map(d => (
-                      <div key={d.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: C.gray600, padding: "3px 0" }}>
-                        <span>{d.menu?.nama_menu} ×{d.jumlah}</span>
-                        <span style={{ fontWeight: 600 }}>Rp{Number(d.subtotal).toLocaleString("id-ID")}</span>
+                      <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 0", borderBottom: `1px solid ${C.gray50}` }}>
+                        {/* GAMBAR MENU */}
+                        {d.menu?.gambar && (
+                          <img 
+                            src={getImageUrl(d.menu.gambar)} 
+                            alt={d.menu.nama_menu}
+                            style={{ 
+                              width: 50, 
+                              height: 50, 
+                              borderRadius: 10, 
+                              objectFit: "cover",
+                              background: C.gray100
+                            }}
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              if(e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
+                            }}
+                          />
+                        )}
+                        {/* FALLBACK JIKA GAMBAR ERROR */}
+                        <div style={{ 
+                          width: 50, 
+                          height: 50, 
+                          borderRadius: 10, 
+                          background: C.gray100,
+                          display: !d.menu?.gambar ? 'flex' : 'none',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: 24
+                        }}>
+                          🍽️
+                        </div>
+                        
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: 600, color: C.gray800 }}>{d.menu?.nama_menu}</div>
+                          <div style={{ fontSize: 11, color: C.gray400 }}>×{d.jumlah}</div>
+                        </div>
+                        
+                        <span style={{ fontWeight: 700, color: C.red }}>
+                          Rp{Number(d.subtotal).toLocaleString("id-ID")}
+                        </span>
                       </div>
                     ))}
                   </div>
+
+                  {/* CATATAN PESANAN - TAMBAHAN */}
+                  {p.catatan && (
+                    <div style={{ 
+                      background: C.gray100, 
+                      borderRadius: 10, 
+                      padding: "10px 14px", 
+                      marginBottom: 12,
+                      borderLeft: `4px solid ${C.redDark}`
+                    }}>
+                      <div style={{ 
+                        fontSize: 11, 
+                        fontWeight: 700, 
+                        color: C.black, 
+                        marginBottom: 4,
+                        display: "flex",
+                        alignItems: "center",
+                      }}>
+                        <span></span> Catatan Pesanan
+                      </div>
+                      <div style={{ 
+                        fontSize: 12, 
+                        color: C.gray700, 
+                        fontStyle: "italic",
+                        wordBreak: "break-word"
+                      }}>
+                        {p.catatan}
+                      </div>
+                    </div>
+                  )}
 
                   {p.transaksi && (
                     <div style={{ background: C.gray50, borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 6, fontSize: 13 }}>
@@ -101,11 +178,11 @@ export default function OrderPage() {
                   {isMerchant && (
                     <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
                       {p.status === "PENDING" && <>
-                        <BtnBlue small onClick={() => updateStatus(p.id, "DIPROSES")}>▶ Proses</BtnBlue>
-                        <BtnRed small onClick={() => updateStatus(p.id, "SELESAI")}>✅ Selesai</BtnRed>
+                        <BtnBlue small onClick={() => updateStatus(p.id, "DIPROSES")}>Proses</BtnBlue>
+                        <BtnRed small onClick={() => updateStatus(p.id, "SELESAI")}>Selesai</BtnRed>
                         <BtnGhost small danger onClick={() => updateStatus(p.id, "BATAL")}>✕ Batal</BtnGhost>
                       </>}
-                      {p.status === "DIPROSES" && <BtnRed small onClick={() => updateStatus(p.id, "SELESAI")}>✅ Selesai</BtnRed>}
+                      {p.status === "DIPROSES" && <BtnRed small onClick={() => updateStatus(p.id, "SELESAI")}>Selesai</BtnRed>}
                     </div>
                   )}
                 </div>

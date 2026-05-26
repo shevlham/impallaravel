@@ -38,6 +38,8 @@ export default function MenuPage() {
   const [paymentModal, setPaymentModal] = useState(false);
   const [paymentOrders, setPaymentOrders] = useState([]);
   const [bankTransfer, setBankTransfer] = useState("BCA");
+  const [orderNote, setOrderNote] = useState("");
+  const [showNote, setShowNote] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -62,33 +64,39 @@ export default function MenuPage() {
     .filter(m => filterToko === "Semua" || m.merchant_id === filterToko);
 
   const saveMenu = async e => {
-    e.preventDefault();
+  e.preventDefault();
 
-    try {
-      const fd = new FormData();
-      fd.append("nama_menu", form.nama_menu);
-      fd.append("harga", form.harga);
-      fd.append("stok", form.stok);
-      fd.append("kategori", form.kategori);
+  try {
+    const fd = new FormData();
+    fd.append("nama_menu", form.nama_menu);
+    fd.append("harga", form.harga);
+    fd.append("stok", form.stok);
+    fd.append("kategori", form.kategori);
 
-      if (form.gambar) {
-        fd.append("gambar", form.gambar);
-      }
-
-      if (editId) {
-        fd.append("_method", "PUT");
-      }
-
-      const res = await apiFetch("POST", (editId ? `/menus/${editId}` : "/menus"), fd, token);
-
-      toast(editId ? "Menu diperbarui!" : "Menu ditambahkan! 🎉");
-      setMenuModal(false);
-      load();
-
-    } catch (er) {
-      toast(er.message, "error");
+    if (form.gambar) {
+      fd.append("gambar", form.gambar);
     }
-  };
+
+    if (editId) {
+      fd.append("_method", "PUT");
+    }
+
+    // Perbaiki: Panggil API yang benar untuk menu
+    const res = await apiFetch(
+      "POST", 
+      editId ? `/menus/${editId}` : "/menus", 
+      fd, 
+      token
+    );
+
+    toast(editId ? "Menu diperbarui!" : "Menu ditambahkan! 🎉");
+    setMenuModal(false);
+    load();
+
+  } catch (er) {
+    toast(er.message, "error");
+  }
+};
 
   const delMenu = async id => {
     if (!window.confirm("Hapus menu ini?")) return;
@@ -138,34 +146,35 @@ export default function MenuPage() {
   const removeItem = id => setCart(p => p.filter(c => c.id !== id));
   const totalCart = cart.reduce((s, c) => s + Number(c.harga) * c.qty, 0);
   const cartCount = cart.reduce((s, c) => s + c.qty, 0);
-
+  
   const submitOrder = async () => {
-    if (!cart.length) return;
-    try {
-      const byMerchant = {};
-      cart.forEach(c => {
-        if (!byMerchant[c.merchant_id]) byMerchant[c.merchant_id] = [];
-        byMerchant[c.merchant_id].push(c);
-      });
+  if (!cart.length) return;
+  try {
+    const byMerchant = {};
+    cart.forEach(c => {
+      if (!byMerchant[c.merchant_id]) byMerchant[c.merchant_id] = [];
+      byMerchant[c.merchant_id].push(c);
+    });
 
-      const orders = [];
-      for (const mId in byMerchant) {
-        const res = await apiFetch("POST", "/pesanans", {
-          merchant_id: mId,
-          metode_bayar: metode,
-          items: byMerchant[mId].map(c => ({ menu_id: c.id, jumlah: c.qty }))
-        }, token);
-        orders.push(res.data);
-      }
-      toast("Pesanan berhasil dibuat! 🎉");
-      setCart([]); 
-      setOrderModal(false);
-      setPaymentOrders(orders);
-      setPaymentModal(true);
-    } catch (er) { 
-        toast(er.message, "error"); 
+    const orders = [];
+    for (const mId in byMerchant) {
+      const res = await apiFetch("POST", "/pesanans", {
+        merchant_id: mId,
+        metode_bayar: metode,
+        items: byMerchant[mId].map(c => ({ menu_id: c.id, jumlah: c.qty })),
+        catatan: orderNote,  // ✅ PASTIKAN INI ADA
+      }, token);
+      orders.push(res.data);
     }
-  };
+    toast("Pesanan berhasil dibuat! 🎉");
+    setCart([]); 
+    setOrderModal(false);
+    setPaymentOrders(orders);
+    setPaymentModal(true);
+  } catch (er) { 
+    toast(er.message, "error"); 
+  }
+};
 
   return (
     <>
@@ -288,7 +297,10 @@ export default function MenuPage() {
 
       {/* Cart FAB */}
       {isPelanggan && cart.length > 0 && (
-        <button onClick={() => setOrderModal(true)} style={{
+        <button onClick={() => { 
+            setOrderModal(true); 
+            setOrderNote("");  // Reset note setiap buka modal
+          }} style={{
           position: "fixed",
           bottom: 16,
           right: 20,
@@ -346,37 +358,226 @@ export default function MenuPage() {
       </Modal>
 
       {/* Order Modal */}
-      <Modal open={orderModal} onClose={() => setOrderModal(false)} title="🛒 Konfirmasi Pesanan">
-        <div style={{ maxHeight: "35vh", overflowY: "auto", marginBottom: 16 }}>
-          {cart.map(c => (
-            <div key={c.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: `1px solid ${C.gray100}` }}>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 14, color: C.gray900 }}>{c.nama_menu}</div>
-                <div style={{ fontSize: 13, color: C.red, fontWeight: 700 }}>Rp{(Number(c.harga) * c.qty).toLocaleString("id-ID")}</div>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <button style={qtyBtnStyle} onClick={() => changeQty(c.id, -1)}>−</button>
-                <span style={{ fontWeight: 700, minWidth: 22, textAlign: "center", fontSize: 14 }}>{c.qty}</span>
-                <button style={qtyBtnStyle} onClick={() => changeQty(c.id, +1)}>+</button>
-                <button style={{ ...qtyBtnStyle, color: C.red }} onClick={() => removeItem(c.id)}>✕</button>
+      {/* Order Modal */}
+<Modal open={orderModal} onClose={() => setOrderModal(false)} title="🛒 Konfirmasi Pesanan">
+  {/* TIPE PEMESANAN */}
+  <div style={{ 
+    background: C.gray50, 
+    borderRadius: 12, 
+    padding: "12px 16px", 
+    marginBottom: 16,
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center"
+  }}>
+    <span style={{ fontSize: 13, color: C.gray600 }}>Tipe Pemesanan</span>
+    <span style={{ fontWeight: 700, fontSize: 14, color: C.gray900 }}>Makan di tempat</span>
+  </div>
+
+  {/* REKOMENDASI MENU TERKAIT */}
+  <div style={{ marginBottom: 16 }}>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+      <h4 style={{ fontSize: 14, fontWeight: 800, color: C.gray900 }}>Menu Terkait</h4>
+      <button style={{ fontSize: 12, color: C.red, background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>
+        Lihat Semua →
+      </button>
+    </div>
+    <div style={{ display: "flex", gap: 12, overflowX: "auto" }}>
+      {/* Contoh menu rekomendasi - ganti dengan data dari API */}
+      {menus.filter(m => m.merchant_id === cart[0]?.merchant_id).slice(0, 3).map(menu => (
+        <div 
+          key={menu.id}
+          onClick={() => addCart(menu)}
+          style={{ 
+            minWidth: 120, 
+            background: C.white, 
+            borderRadius: 12, 
+            border: `1px solid ${C.gray100}`,
+            overflow: "hidden",
+            cursor: "pointer"
+          }}
+        >
+          {menu.gambar ? (
+            <img 
+              src={menu.gambar.startsWith('http') ? menu.gambar : `http://localhost:8000/storage/${menu.gambar}`}
+              alt={menu.nama_menu}
+              style={{ width: "100%", height: 100, objectFit: "cover" }}
+            />
+          ) : (
+            <div style={{ width: "100%", height: 100, background: C.gray100, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32 }}>🍽️</div>
+          )}
+          <div style={{ padding: "8px 10px" }}>
+            <div style={{ fontWeight: 700, fontSize: 12, color: C.gray900 }}>{menu.nama_menu}</div>
+            <div style={{ fontSize: 11, color: C.red, fontWeight: 700 }}>Rp{Number(menu.harga).toLocaleString("id-ID")}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+
+  {/* ITEM YANG DIPESAN */}
+  <div style={{ marginBottom: 16 }}>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+      <h4 style={{ fontSize: 14, fontWeight: 800, color: C.gray900 }}>Item yang dipesan ({cart.reduce((s, c) => s + c.qty, 0)})</h4>
+      <button 
+        onClick={() => setMenuModal(true)} 
+        style={{ fontSize: 12, color: C.blue, background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}
+      >
+        + Tambah Item
+      </button>
+    </div>
+    
+    <div style={{ maxHeight: "30vh", overflowY: "auto" }}>
+      {cart.map(c => (
+        <div key={c.id} style={{ marginBottom: 12, paddingBottom: 12, borderBottom: `1px solid ${C.gray100}` }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 13, color: C.gray900 }}>{c.nama_menu}</div>
+              <div style={{ fontSize: 11, color: C.gray500, marginTop: 4 }}>
+                {c.qty}x Rp{Number(c.harga).toLocaleString("id-ID")}
               </div>
             </div>
-          ))}
+            <div style={{ fontWeight: 700, fontSize: 13, color: C.red }}>
+              Rp{(Number(c.harga) * c.qty).toLocaleString("id-ID")}
+            </div>
+          </div>
+          
+          {/* Tombol quantity */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+            <button 
+              style={{ ...qtyBtnStyle, width: 24, height: 24, fontSize: 12 }}
+              onClick={() => changeQty(c.id, -1)}
+            >−</button>
+            <span style={{ fontWeight: 600, fontSize: 12 }}>{c.qty}</span>
+            <button 
+              style={{ ...qtyBtnStyle, width: 24, height: 24, fontSize: 12 }}
+              onClick={() => changeQty(c.id, +1)}
+            >+</button>
+            <button 
+              style={{ ...qtyBtnStyle, width: 24, height: 24, fontSize: 10, color: C.red }}
+              onClick={() => removeItem(c.id)}
+            >✕</button>
+          </div>
         </div>
-        <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 0", borderTop: `1px solid ${C.gray100}`, marginBottom: 16 }}>
-          <span style={{ color: C.gray600, fontWeight: 600 }}>Total</span>
-          <span style={{ fontWeight: 800, fontSize: 18, color: C.red }}>Rp{totalCart.toLocaleString("id-ID")}</span>
-        </div>
-        <Sel label="Metode Pembayaran" value={metode} onChange={e => setMetode(e.target.value)}>
-          <option value="CASH">💵 Cash</option>
-          <option value="QRIS">📱 QRIS</option>
-          <option value="TRANSFER">🏦 Transfer Bank</option>
-        </Sel>
-        <div style={{ display: "flex", gap: 10 }}>
-          <BtnRed full onClick={submitOrder}>Pesan Sekarang</BtnRed>
-          <BtnGhost full onClick={() => setOrderModal(false)}>Batal</BtnGhost>
-        </div>
-      </Modal>
+      ))}
+    </div>
+
+    {/* Catatan */}
+    <div style={{ marginTop: 12 }}>
+      <button 
+        onClick={() => setShowNote(!showNote)}
+        style={{ fontSize: 12, color: C.gray500, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+      >
+        <span>📝</span> {orderNote ? "Ubah catatan" : "Tambah catatan lainnya"}
+      </button>
+      {showNote && (
+        <textarea
+          rows={2}
+          placeholder="Contoh: Level kepedasan 10, pisahkan sambal..."
+          value={orderNote}
+          onChange={(e) => setOrderNote(e.target.value)}
+          style={{
+            width: "100%",
+            marginTop: 8,
+            padding: "10px",
+            borderRadius: 10,
+            border: `1px solid ${C.gray200}`,
+            fontSize: 12,
+            resize: "vertical"
+          }}
+        />
+      )}
+    </div>
+  </div>
+
+  {/* RINCIAN PEMBAYARAN */}
+  <div style={{ 
+    background: C.gray50, 
+    borderRadius: 12, 
+    padding: "14px 16px", 
+    marginBottom: 16 
+  }}>
+    <h4 style={{ fontSize: 14, fontWeight: 800, color: C.gray900, marginBottom: 12 }}>Rincian Pembayaran</h4>
+    
+    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+      <span style={{ fontSize: 12, color: C.gray600 }}>Subtotal ({cart.reduce((s, c) => s + c.qty, 0)} menu)</span>
+      <span style={{ fontSize: 12, fontWeight: 600, color: C.gray800 }}>Rp{totalCart.toLocaleString("id-ID")}</span>
+    </div>
+    
+    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+      <span style={{ fontSize: 12, color: C.gray600 }}>Pembulatan</span>
+      <span style={{ fontSize: 12, fontWeight: 600, color: C.gray800 }}>-Rp{Math.floor(totalCart % 1000).toLocaleString("id-ID")}</span>
+    </div>
+    
+    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
+      <span style={{ fontSize: 12, color: C.gray600 }}>Biaya lainnya</span>
+      <span style={{ fontSize: 12, fontWeight: 600, color: C.gray800 }}>Rp{Math.ceil(totalCart * 0.1).toLocaleString("id-ID")}</span>
+    </div>
+    
+    <div style={{ 
+      display: "flex", 
+      justifyContent: "space-between", 
+      paddingTop: 12, 
+      borderTop: `1px dashed ${C.gray200}`,
+      marginTop: 4
+    }}>
+      <span style={{ fontWeight: 800, fontSize: 14, color: C.gray900 }}>Total</span>
+      <span style={{ fontWeight: 900, fontSize: 16, color: C.red }}>
+        Rp{(totalCart - Math.floor(totalCart % 1000) + Math.ceil(totalCart * 0.1)).toLocaleString("id-ID")}
+      </span>
+    </div>
+  </div>
+
+  {/* METODE PEMBAYARAN */}
+  <div style={{ marginBottom: 16 }}>
+    <h4 style={{ fontSize: 14, fontWeight: 800, color: C.gray900, marginBottom: 10 }}>Metode Pembayaran</h4>
+    <div style={{ display: "flex", gap: 10 }}>
+      {["CASH", "QRIS", "TRANSFER"].map(m => (
+        <button
+          key={m}
+          onClick={() => setMetode(m)}
+          style={{
+            flex: 1,
+            padding: "10px",
+            borderRadius: 10,
+            border: `1px solid ${metode === m ? C.red : C.gray200}`,
+            background: metode === m ? C.redLight : C.white,
+            color: metode === m ? C.red : C.gray600,
+            fontWeight: 600,
+            fontSize: 12,
+            cursor: "pointer",
+            transition: "all 0.15s"
+          }}
+        >
+          {m === "CASH" && "💵 Cash"}
+          {m === "QRIS" && "📱 QRIS"}
+          {m === "TRANSFER" && "🏦 Transfer"}
+        </button>
+      ))}
+    </div>
+  </div>
+
+  {/* TOTAL PEMBAYARAN & TOMbol */}
+  <div style={{ 
+    display: "flex", 
+    justifyContent: "space-between", 
+    alignItems: "center",
+    paddingTop: 12,
+    borderTop: `1px solid ${C.gray100}`,
+    marginTop: 8
+  }}>
+    <div>
+      <div style={{ fontSize: 12, color: C.gray500 }}>Total Pembayaran</div>
+      <div style={{ fontWeight: 900, fontSize: 20, color: C.red }}>
+        Rp{(totalCart - Math.floor(totalCart % 1000) + Math.ceil(totalCart * 0.1)).toLocaleString("id-ID")}
+      </div>
+    </div>
+    <BtnRed onClick={submitOrder} style={{ padding: "12px 24px", fontSize: 14 }}>
+      Lanjut Pembayaran →
+    </BtnRed>
+  </div>
+</Modal>
+
 
       {/* Payment Modal */}
       <Modal open={paymentModal} onClose={() => setPaymentModal(false)} title="💳 Tagihan Pembayaran">
