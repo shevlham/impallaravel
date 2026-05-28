@@ -21,9 +21,9 @@ class MenuController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'nama_menu' => 'required|string',
-            'harga'     => 'required|numeric|min:0',
-            'stok'      => 'required|integer|min:0',
+            'nama_menu' => 'required|string|min:3|max:100',
+            'harga'     => 'required|numeric|min:1|max:999999999',
+            'stok'      => 'required|integer|min:0|max:999999',
             'gambar'    => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
             'kategori'  => 'nullable|string',
         ]);
@@ -63,6 +63,13 @@ class MenuController extends Controller
         if (!$merchant || $menu->merchant_id !== $merchant->id) {
             return response()->json(['message' => 'Tidak diizinkan'], 403);
         }
+        $request->validate([
+            'nama_menu' => 'required|string|min:3|max:100',
+            'harga'     => 'required|numeric|min:1|max:999999999',
+            'stok'      => 'required|integer|min:0|max:999999',
+            'gambar'    => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+            'kategori'  => 'nullable|string',
+        ]);
 
         if ($request->hasFile('gambar')) {
             $result = cloudinary()->uploadApi()->upload($request->file('gambar')->getRealPath(), [

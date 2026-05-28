@@ -64,8 +64,56 @@ export default function MenuPage() {
     .filter(m => filterToko === "Semua" || m.merchant_id === filterToko);
 
   const saveMenu = async e => {
-  e.preventDefault();
+  e.preventDefault();  
+  // 1. Validasi Nama Menu
+  if (!form.nama_menu || form.nama_menu.trim().length < 3) {
+    toast("Nama menu minimal 3 karakter", "error");
+    return;
+  }
+  
+  // 2. Validasi Harga
+  if (!form.harga || Number(form.harga) <= 0) {
+    toast("Harga harus lebih dari 0", "error");
+    return;
+  }
+  if (Number(form.harga) > 999999999) {
+    toast("Harga melebihi batas maksimal", "error");
+    return;
+  }
+  
+  // 3. Validasi Stok
+  if (form.stok === "" || form.stok === null) {
+    toast("Stok wajib diisi", "error");
+    return;
+  }
+  if (Number(form.stok) < 0) {
+    toast("Stok tidak boleh negatif", "error");
+    return;
+  }
+  if (Number(form.stok) > 999999) {
+    toast("Stok melebihi batas maksimal", "error");
+    return;
+  }
+  
+  // 4. Validasi Kategori
+  if (!form.kategori) {
+    toast("Kategori wajib dipilih", "error");
+    return;
+  }
+  
+  // 5. Validasi Gambar (jika ada)
+  if (form.gambar) {
+    if (form.gambar.size > 2 * 1024 * 1024) {
+      toast("Ukuran gambar maksimal 2MB", "error");
+      return;
+    }
+    if (!['image/jpeg', 'image/png', 'image/jpg', 'image/gif'].includes(form.gambar.type)) {
+      toast("Format gambar harus JPG, PNG, atau GIF", "error");
+      return;
+    }
+  }
 
+  // Lanjut ke proses simpan jika semua validasi lolos
   try {
     const fd = new FormData();
     fd.append("nama_menu", form.nama_menu);
@@ -331,33 +379,105 @@ export default function MenuPage() {
       )}
 
       {/* Menu Modal */}
-      <Modal open={menuModal} onClose={() => setMenuModal(false)} title={editId ? "Edit Menu" : "Tambah Menu"}>
-        <form onSubmit={saveMenu}>
-          <Inp label="Nama Menu" placeholder="Contoh: Nasi Goreng Spesial" value={form.nama_menu} onChange={e => setForm({ ...form, nama_menu: e.target.value })} required />
-          <Sel label="Kategori" value={form.kategori} onChange={e => setForm({ ...form, kategori: e.target.value })}>
-            <option value="Makanan">Makanan</option>
-            <option value="Minuman">Minuman</option>
-            <option value="Cemilan">Cemilan</option>
-            <option value="Lainnya">Lainnya</option>
-          </Sel>
-          <Inp label="Harga (Rp)" type="number" placeholder="15000" value={form.harga} onChange={e => setForm({ ...form, harga: e.target.value })} required />
-          <Inp label="Stok" type="number" placeholder="10" value={form.stok} onChange={e => setForm({ ...form, stok: e.target.value })} required />
-          <div style={{ marginBottom: 16 }}>
-            <label style={labelStyle}>Gambar Menu</label>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={e => setForm({ ...form, gambar: e.target.files[0] })}
-            />
-          </div>
-          <div style={{ display: "flex", gap: 10 }}>
-            <BtnRed full>Simpan</BtnRed>
-            <BtnGhost full onClick={() => setMenuModal(false)}>Batal</BtnGhost>
-          </div>
-        </form>
-      </Modal>
+<Modal open={menuModal} onClose={() => setMenuModal(false)} title={editId ? "Edit Menu" : "Tambah Menu"}>
+  <form onSubmit={saveMenu}>
+    <Inp 
+      label="Nama Menu" 
+      placeholder="Contoh: Nasi Goreng Spesial" 
+      value={form.nama_menu} 
+      onChange={e => setForm({ ...form, nama_menu: e.target.value })} 
+      required 
+    />
+    {/* Error: Nama menu terlalu pendek */}
+    {form.nama_menu && form.nama_menu.trim().length < 3 && (
+      <div style={{ color: C.red, fontSize: 11, marginTop: -8, marginBottom: 8 }}>
+        ⚠️ Nama menu minimal 3 karakter
+      </div>
+    )}
+    
+    <Sel label="Kategori" value={form.kategori} onChange={e => setForm({ ...form, kategori: e.target.value })}>
+      <option value="Makanan">Makanan</option>
+      <option value="Minuman">Minuman</option>
+      <option value="Cemilan">Cemilan</option>
+      <option value="Lainnya">Lainnya</option>
+    </Sel>
+    {/* Error: Kategori tidak dipilih */}
+    {!form.kategori && (
+      <div style={{ color: C.red, fontSize: 11, marginTop: -8, marginBottom: 8 }}>
+        ⚠️ Kategori wajib dipilih
+      </div>
+    )}
+    
+    <Inp 
+      label="Harga (Rp)" 
+      type="number" 
+      placeholder="15000" 
+      value={form.harga} 
+      onChange={e => setForm({ ...form, harga: e.target.value })} 
+      required 
+    />
+    {/* Error: Harga nol atau negatif */}
+    {form.harga && (Number(form.harga) <= 0) && (
+      <div style={{ color: C.red, fontSize: 11, marginTop: -8, marginBottom: 8 }}>
+        ⚠️ Harga harus lebih dari 0
+      </div>
+    )}
+    {/* Error: Harga terlalu besar */}
+    {form.harga && (Number(form.harga) > 999999999) && (
+      <div style={{ color: C.red, fontSize: 11, marginTop: -8, marginBottom: 8 }}>
+        ⚠️ Harga melebihi batas maksimal (Rp 999.999.999)
+      </div>
+    )}
+    
+    <Inp 
+      label="Stok" 
+      type="number" 
+      placeholder="10" 
+      value={form.stok} 
+      onChange={e => setForm({ ...form, stok: e.target.value })} 
+      required 
+    />
+    {/* Error: Stok negatif */}
+    {form.stok && (Number(form.stok) < 0) && (
+      <div style={{ color: C.red, fontSize: 11, marginTop: -8, marginBottom: 8 }}>
+        ⚠️ Stok tidak boleh negatif
+      </div>
+    )}
+    {/* Error: Stok terlalu besar */}
+    {form.stok && (Number(form.stok) > 999999) && (
+      <div style={{ color: C.red, fontSize: 11, marginTop: -8, marginBottom: 8 }}>
+        ⚠️ Stok melebihi batas maksimal (999.999)
+      </div>
+    )}
+    
+    <div style={{ marginBottom: 16 }}>
+      <label style={labelStyle}>Gambar Menu</label>
+      <input
+        type="file"
+        accept="image/*"
+        onChange={e => setForm({ ...form, gambar: e.target.files[0] })}
+      />
+      {/* Error: File gambar terlalu besar */}
+      {form.gambar && form.gambar.size > 2 * 1024 * 1024 && (
+        <div style={{ color: C.red, fontSize: 11, marginTop: 4 }}>
+          ⚠️ Ukuran gambar maksimal 2MB
+        </div>
+      )}
+      {/* Error: Tipe file tidak valid */}
+      {form.gambar && !['image/jpeg', 'image/png', 'image/jpg', 'image/gif'].includes(form.gambar.type) && (
+        <div style={{ color: C.red, fontSize: 11, marginTop: 4 }}>
+          ⚠️ Format harus JPG, PNG, atau GIF
+        </div>
+      )}
+    </div>
+    
+    <div style={{ display: "flex", gap: 10 }}>
+      <BtnRed full type="submit">Simpan</BtnRed>
+      <BtnGhost full onClick={() => setMenuModal(false)}>Batal</BtnGhost>
+    </div>
+  </form>
+</Modal>
 
-      {/* Order Modal */}
       {/* Order Modal */}
 <Modal open={orderModal} onClose={() => setOrderModal(false)} title="🛒 Konfirmasi Pesanan">
   {/* TIPE PEMESANAN */}
