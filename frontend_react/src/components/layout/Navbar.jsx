@@ -1,12 +1,16 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { C } from "../../styles/tokens";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
-import { BtnGhost } from "../ui/Button";
+import { useState, useRef, useEffect } from "react";
 
 export default function Navbar() {
   const { user, token, logout } = useAuth();
   const toast = useToast();
+  const navigate = useNavigate();
+  
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
 
   const links = [
     { path: "/dashboard", icon: "📊", label: "Dashboard", roles: ["MERCHANT"] },
@@ -14,6 +18,17 @@ export default function Navbar() {
     { path: "/pesanan", icon: "📋", label: "Pesanan", roles: ["PELANGGAN", "MERCHANT", "ADMIN"] },
     { path: "/admin", icon: "⚙️", label: "Admin", roles: ["ADMIN"] },
   ].filter(l => l.roles.includes(user?.role));
+
+  // Tutup dropdown saat klik di luar
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const navBtnStyle = ({ isActive }) => ({
     padding: "7px 18px", borderRadius: 9, border: "none", cursor: "pointer",
@@ -31,61 +46,150 @@ export default function Navbar() {
     textDecoration: "none",
   });
 
+  const handleLogout = async () => {
+    setIsDropdownOpen(false);
+    await logout(token);
+    toast("Sampai jumpa! 👋");
+    navigate("/login");
+  };
+
+  const goToSettings = () => {
+    setIsDropdownOpen(false);
+    navigate("/setting");
+  };
+
   return (
     <>
-        {/* Desktop Navbar */}
-        <header className="hide-mobile" style={{ position: "sticky", top: 0, zIndex: 200, background: C.white, borderBottom: `1px solid ${C.gray100}`, boxShadow: "0 1px 8px rgba(15,23,42,.06)" }}>
+      {/* Desktop Navbar */}
+      <header className="hide-mobile" style={{ position: "sticky", top: 0, zIndex: 200, background: C.white, borderBottom: `1px solid ${C.gray100}`, boxShadow: "0 1px 8px rgba(15,23,42,.06)" }}>
         <div style={{ margin: "0 auto", padding: "0 20px", height: 62, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
             <div style={{ width: 44, height: 44, borderRadius: 13, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <img src="/logo.png" alt="logo" style={{ width: 50, height: 50, borderRadius: 13, overflow: "hidden", boxShadow: "0 12px 30px rgba(0,0,0,0.2), 0 0 20px rgba(255,255,255,0.5)" }} />
+              <img src="/logo.png" alt="logo" style={{ width: 50, height: 50, borderRadius: 13, overflow: "hidden", boxShadow: "0 12px 30px rgba(0,0,0,0.2), 0 0 20px rgba(255,255,255,0.5)" }} />
             </div>
             <span style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 19, color: C.gray900 }}>TelEat</span>
-            </div>
+          </div>
 
-            <nav style={{ display: "flex", gap: 70 }}>
+          <nav style={{ display: "flex", gap: 70 }}>
             {links.map(l => (
-                <NavLink key={l.path} to={l.path} className="btn-hover" style={navBtnStyle}>
-                    {l.icon} {l.label}
-                </NavLink>
+              <NavLink key={l.path} to={l.path} className="btn-hover" style={navBtnStyle}>
+                {l.icon} {l.label}
+              </NavLink>
             ))}
-            </nav>
+          </nav>
 
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                <div style={{ width: 36, height: 36, borderRadius: "50%", background: `linear-gradient(135deg, ${C.red}, ${C.redDark})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: C.white, overflow: "hidden" }}>
+          {/* DROPDOWN PROFILE */}
+          <div style={{ position: "relative" }} ref={dropdownRef}>
+            <button
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                padding: "4px 8px 4px 12px",
+                borderRadius: 40,
+                transition: "all 0.2s",
+                background: isDropdownOpen ? C.gray100 : "transparent",
+              }}
+            >
+              <div style={{ width: 36, height: 36, borderRadius: "50%", background: `linear-gradient(135deg, ${C.red}, ${C.redDark})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: C.white, overflow: "hidden" }}>
                 {user?.foto_profil ? (
-                    <img src={user.foto_profil} alt="Profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  <img src={user.foto_profil} alt="Profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 ) : (
-                    (user?.profile?.nama || user?.profile?.nama_merchant || user?.username || "U")[0].toUpperCase()
+                  (user?.profile?.nama || user?.profile?.nama_merchant || user?.username || "U")[0].toUpperCase()
                 )}
-                </div>
-                <div>
+              </div>
+              <div style={{ textAlign: "left" }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: C.gray900, lineHeight: 1.2 }}>
-                    {user?.profile?.nama || user?.profile?.nama_merchant || user?.username}
+                  {user?.profile?.nama || user?.profile?.nama_merchant || user?.username}
                 </div>
                 <div style={{ fontSize: 10, fontWeight: 700, color: C.blue }}>{user?.role}</div>
-                </div>
-            </div>
-            <BtnGhost small onClick={async () => { await logout(token); toast("Sampai jumpa! 👋"); }}>Keluar</BtnGhost>
-            </div>
-        </div>
-        </header>
+              </div>
+              <span style={{ fontSize: 12, color: C.gray400 }}>▼</span>
+            </button>
 
-        {/* Mobile Bottom Nav */}
-        <nav className="hide-desktop" style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 200, background: C.white, borderTop: `1px solid ${C.gray100}`, display: "flex", paddingBottom: "env(safe-area-inset-bottom,0)", boxShadow: "0 -4px 20px rgba(15,23,42,.06)" }}>
+            {/* DROPDOWN MENU */}
+            {isDropdownOpen && (
+              <div style={{
+                position: "absolute",
+                top: "100%",
+                right: 0,
+                marginTop: 8,
+                background: C.white,
+                borderRadius: 12,
+                boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.02)",
+                border: `1px solid ${C.gray100}`,
+                width: 160,
+                zIndex: 100,
+                overflow: "hidden",
+              }}>
+                {/* MENU PENGATURAN */}
+                <button
+                  onClick={goToSettings}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    padding: "12px 16px",
+                    width: "100%",
+                    border: "none",
+                    background: "none",
+                    cursor: "pointer",
+                    color: C.gray700,
+                    transition: "all 0.2s",
+                    fontSize: 13,
+                    textAlign: "left",
+                  }}
+                >
+                  <span style={{ fontSize: 16 }}></span>
+                  Pengaturan
+                </button>
+                
+                {/* MENU KELUAR */}
+                <button
+                  onClick={handleLogout}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    padding: "12px 16px",
+                    width: "100%",
+                    border: "none",
+                    background: "none",
+                    cursor: "pointer",
+                    color: C.red,
+                    transition: "all 0.2s",
+                    fontSize: 13,
+                    textAlign: "left",
+                    borderTop: `1px solid ${C.gray100}`,
+                  }}
+                >
+                  <span style={{ fontSize: 16 }}></span>
+                  Keluar
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </header>
+
+      {/* Mobile Bottom Nav */}
+      <nav className="hide-desktop" style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 200, background: C.white, borderTop: `1px solid ${C.gray100}`, display: "flex", paddingBottom: "env(safe-area-inset-bottom,0)", boxShadow: "0 -4px 20px rgba(15,23,42,.06)" }}>
         {links.map(t => (
-            <NavLink key={t.path} to={t.path} style={mobileTabStyle}>
-                {({ isActive }) => (
-                    <>
-                        <span style={{ fontSize: 22 }}>{t.icon}</span>
-                        <span style={{ fontSize: 10, fontWeight: 700 }}>{t.label}</span>
-                        {isActive && <div style={{ width: 16, height: 2, background: C.red, borderRadius: 99, marginTop: 1 }} />}
-                    </>
-                )}
-            </NavLink>
+          <NavLink key={t.path} to={t.path} style={mobileTabStyle}>
+            {({ isActive }) => (
+              <>
+                <span style={{ fontSize: 22 }}>{t.icon}</span>
+                <span style={{ fontSize: 10, fontWeight: 700 }}>{t.label}</span>
+                {isActive && <div style={{ width: 16, height: 2, background: C.red, borderRadius: 99, marginTop: 1 }} />}
+              </>
+            )}
+          </NavLink>
         ))}
-        </nav>
+      </nav>
     </>
   );
 }

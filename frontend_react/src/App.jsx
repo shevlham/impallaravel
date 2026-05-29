@@ -8,6 +8,7 @@ import MenuPage from "./pages/MenuPage";
 import OrderPage from "./pages/OrderPage";
 import AdminPage from "./pages/AdminPage";
 import MerchantDashboard from "./pages/MerchantDashboard";
+import SettingsPage from "./pages/SettingPage";
 
 export default function App() {
   const { user } = useAuth();
@@ -17,6 +18,11 @@ export default function App() {
       {/* ── Auth routes: fullscreen, NO navbar, NO container ── */}
       <Route path="/login"    element={!user ? <LoginPage />    : <Navigate to="/" />} />
       <Route path="/register" element={!user ? <RegisterPage /> : <Navigate to="/" />} />
+      <Route path="/setting" element={
+        <ProtectedRoute> 
+          <SettingsPage />
+        </ProtectedRoute>
+    } />
 
       {/* ── App routes: with navbar & centered container ── */}
       <Route path="/*" element={

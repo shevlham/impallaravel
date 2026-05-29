@@ -15,10 +15,13 @@ const STATUS_CFG = {
 };
 
 export default function MerchantDashboard() {
-  const { token } = useAuth();
+  const { user, token } = useAuth();
+  const isMerchant = user?.role === "MERCHANT";
   const toast = useToast();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [statusToko, setStatusToko] = useState("BUKA");
+  const [updating, setUpdating] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -32,7 +35,34 @@ export default function MerchantDashboard() {
     }
   }, [token, toast]);
 
-  useEffect(() => { load(); }, [load]);
+  const loadStatusToko = useCallback(async () => {
+    if (!isMerchant) return;
+    try {
+      const r = await apiFetch("GET", "/merchant/status", null, token);
+      console.log("📦 Response status toko:", r.data); // ✅ DEBUG
+      setStatusToko(r.data.status_toko);
+    } catch (e) {
+      console.error(e);
+    }
+  }, [token, isMerchant]);
+
+    const updateStatusToko = async (status) => {
+    setUpdating(true);
+    try {
+      const r = await apiFetch("PUT", "/merchant/status", { status_toko: status }, token);
+      setStatusToko(r.data.status_toko);
+      toast(`Toko ${status === 'BUKA' ? 'dibuka' : 'ditutup'}!`, "success");
+    } catch (e) {
+      toast(e.message, "error");
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  useEffect(() => { 
+    load(); 
+    loadStatusToko(); // ← PANGGIL loadStatusToko
+  }, [load, loadStatusToko]);
 
   const updateStatus = async (id, status) => {
     try {
@@ -49,12 +79,71 @@ export default function MerchantDashboard() {
     { label: "Pesanan Pending", val: stats.pesanan_pending, icon: "⏳", border: C.warn },
     { label: "Total Transaksi", val: `Rp${Number(stats.total_transaksi || 0).toLocaleString("id-ID")}`, icon: "💰", border: C.success },
   ] : [];
+  
 
   return (
     <div className="page-enter">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
         <h2 style={{ fontFamily: "'Sora',sans-serif", fontSize: 22, fontWeight: 800, color: C.gray900 }}> Dashboard Merchant</h2>
         <BtnGhost small onClick={load}>↻ Refresh</BtnGhost>
+      </div>
+         {/* CARD STATUS TOKO */}
+      <div style={{
+        background: C.gray50,
+        borderRadius: 16,
+        padding: "20px",
+        marginBottom: 24,
+        border: `1px solid ${C.gray200}`,
+      }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 }}>
+          <div>
+            <div style={{ fontSize: 13, color: C.gray500, marginBottom: 4 }}>Status Toko</div>
+            <div style={{ fontSize: 28, fontWeight: 800, color: C.gray900 }}>
+              {statusToko === "BUKA" ? "✅ TOKO BUKA" : "🔒 TOKO TUTUP"}
+            </div>
+            <div style={{ fontSize: 12, color: C.gray500, marginTop: 6 }}>
+              {statusToko === "BUKA"
+                ? "Menu Anda terlihat oleh pelanggan"
+                : "Menu Anda tidak terlihat oleh pelanggan"}
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 12 }}>
+            <button
+              onClick={() => updateStatusToko("BUKA")}
+              disabled={updating || statusToko === "BUKA"}
+              style={{
+                padding: "8px 20px",
+                borderRadius: 99,
+                border: `1px solid ${statusToko === "BUKA" ? C.success : C.gray300}`,
+                fontWeight: 700,
+                fontSize: 13,
+                cursor: statusToko === "BUKA" ? "default" : "pointer",
+                background: statusToko === "BUKA" ? C.success : C.white,
+                color: statusToko === "BUKA" ? C.white : C.gray700,
+                opacity: statusToko === "BUKA" ? 1 : 0.8,
+              }}
+            >
+              BUKA
+            </button>
+            <button
+              onClick={() => updateStatusToko("TUTUP")}
+              disabled={updating || statusToko === "TUTUP"}
+              style={{
+                padding: "8px 20px",
+                borderRadius: 99,
+                border: `1px solid ${statusToko === "TUTUP" ? C.red : C.gray300}`,
+                fontWeight: 700,
+                fontSize: 13,
+                cursor: statusToko === "TUTUP" ? "default" : "pointer",
+                background: statusToko === "TUTUP" ? C.red : C.white,
+                color: statusToko === "TUTUP" ? C.white : C.gray700,
+                opacity: statusToko === "TUTUP" ? 1 : 0.8,
+              }}
+            >
+              TUTUP
+            </button>
+          </div>
+        </div>
       </div>
 
       {loading ? <Spinner /> : !stats ? <Empty icon="⚠️" title="Gagal memuat" sub="Data tidak ditemukan atau terjadi kesalahan" /> : <>

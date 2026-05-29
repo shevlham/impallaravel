@@ -17,7 +17,8 @@ const qtyBtnStyle = {
   display: "inline-flex", alignItems: "center", justifyContent: "center", color: C.gray800,
 };
 
-export default function MenuPage() {
+export default function 
+MenuPage() {
   const { user, token } = useAuth();
   const toast = useToast();
   const role = user?.role;
@@ -40,6 +41,8 @@ export default function MenuPage() {
   const [bankTransfer, setBankTransfer] = useState("BCA");
   const [orderNote, setOrderNote] = useState("");
   const [showNote, setShowNote] = useState(false);
+  const [statusToko, setStatusToko] = useState('BUKA');
+  const [tokoLoading, setTokoLoading] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -72,8 +75,8 @@ export default function MenuPage() {
   }
   
   // 2. Validasi Harga
-  if (!form.harga || Number(form.harga) <= 0) {
-    toast("Harga harus lebih dari 0", "error");
+  if (!form.harga || Number(form.harga) <= 2000) {
+    toast("Harga harus lebih dari RP 2.000", "error");
     return;
   }
   if (Number(form.harga) > 999999999) {
@@ -224,6 +227,23 @@ export default function MenuPage() {
   }
 };
 
+
+const loadStatusToko = useCallback(async () => {
+  if (!isMerchant) return;
+  try {
+    const r = await apiFetch("GET", "/merchant/status", null, token);
+    setStatusToko(r.data.status_toko);
+  } catch (e) {
+    console.error(e);
+  }
+}, [token, isMerchant]);
+
+useEffect(() => {
+  load();
+  if (isMerchant) {
+    loadStatusToko();
+  }
+}, [load, loadStatusToko, isMerchant]);
   return (
     <>
       <div className="page-enter" style={{ paddingBottom: "90px" }}>
@@ -232,6 +252,20 @@ export default function MenuPage() {
             <h2 style={{ fontFamily: "'Sora',sans-serif", fontSize: 22, fontWeight: 800, color: C.gray900 }}>Daftar Menu</h2>
             <p style={{ color: C.gray400, fontSize: 13, marginTop: 2 }}>{displayed.length} menu tersedia</p>
           </div>
+          {isMerchant && (
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            background: statusToko === "BUKA" ? `${C.success}20` : `${C.warn}20`,
+            padding: "4px 12px",
+            borderRadius: 99,
+          }}>
+            <span style={{ fontSize: 12 }}>
+              {statusToko === "BUKA" ? "✅ Toko Buka" : "🔒 Toko Tutup"}
+            </span>
+          </div>
+        )}
           {isMerchant && (
             <BtnRed small onClick={() => { 
                 setEditId(null); 
@@ -440,7 +474,7 @@ export default function MenuPage() {
     {/* Error: Stok negatif */}
     {form.stok && (Number(form.stok) < 0) && (
       <div style={{ color: C.red, fontSize: 11, marginTop: -8, marginBottom: 8 }}>
-        ⚠️ Stok tidak boleh negatif
+        ⚠️ Stok tidak boleh kurang dari 0
       </div>
     )}
     {/* Error: Stok terlalu besar */}

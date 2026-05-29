@@ -160,6 +160,8 @@ class AuthController extends Controller
 
         return [
             'id'          => $user->id,
+            'name'        => $user->name,           // ✅ TAMBAHKAN
+            'email'       => $user->email, 
             'username'    => $user->username,
             'role'        => $user->role,
             'foto_profil' => $user->foto_profil,
@@ -177,4 +179,85 @@ class AuthController extends Controller
         // Kalau sudah ada, tambah angka random
         return $base . '_' . rand(100, 9999);
     }
+    public function updateProfile(Request $request)
+{
+    $user = $request->user();
+    
+    $request->validate([
+        'username' => 'sometimes|string|min:3|max:50|unique:users,username,' . $user->id,
+        'email' => 'sometimes|email|unique:users,email,' . $user->id,  // ✅ TAMBAHKAN INI
+        'foto_profil' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+    ]);
+    
+    if ($request->has('username')) {
+        $user->username = $request->username;
+    }
+    
+    if ($request->has('email')) {  
+        $user->email = $request->email;
+    }
+    
+    if ($request->hasFile('foto_profil')) {
+        $result = cloudinary()->uploadApi()->upload($request->file('foto_profil')->getRealPath(), [
+            'folder' => 'profile',
+            'verify' => false
+        ]);
+        $user->foto_profil = $result['secure_url'];
+    }
+    
+    $user->save();
+    
+    $user->load(['merchant', 'pelanggan', 'admin']);
+    
+    return response()->json([
+        'success' => true,
+        'data' => ['user' => $user],
+        'message' => 'Profil berhasil diupdate'
+    ]);
+}
+
+    public function updatePassword(Request $request)
+{
+    $user = $request->user();
+    
+    $request->validate([
+        'current_password' => 'required',
+        'new_password' => 'required|string|min:6',
+        'new_password_confirmation' => 'required|same:new_password',
+    ]);
+    
+    if (!Hash::check($request->current_password, $user->password)) {
+        return response()->json(['message' => 'Password saat ini salah'], 422);
+    }
+    
+    $user->password = Hash::make($request->new_password);
+    $user->save();
+    
+    return response()->json(['success' => true, 'message' => 'Password berhasil diubah']);
+}
+    public function uploadPhoto(Request $request)
+{
+    $user = $request->user();
+    
+    $request->validate([
+        'foto_profil' => 'required|image|mimes:jpg,jpeg,png|max:2048',
+    ]);
+    
+    if ($request->hasFile('foto_profil')) {
+        $result = cloudinary()->uploadApi()->upload($request->file('foto_profil')->getRealPath(), [
+            'folder' => 'profile',
+            'verify' => false
+        ]);
+        $user->foto_profil = $result['secure_url'];
+        $user->save();
+    }
+    
+    $user->load(['merchant', 'pelanggan', 'admin']);
+    
+    return response()->json([
+        'success' => true,
+        'data' => ['user' => $user],
+        'message' => 'Foto profil berhasil diupdate'
+    ]);
+}
 }

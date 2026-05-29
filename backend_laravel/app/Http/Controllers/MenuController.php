@@ -10,11 +10,21 @@ use Illuminate\Http\Request;
 class MenuController extends Controller
 {
 
-    public function index()
+    public function index(Request $request)
     {
+        $user = $request->user();
         $menus = Menu::with(['merchant' => function ($query) {
-            $query->select('id', 'user_id', 'nama_merchant')->with(['user:id,foto_profil']);
-        }])->get();
+            $query->select('id', 'user_id', 'nama_merchant', 'status_toko')->with(['user:id,foto_profil']);
+        }]);
+        
+        // TAMBAHKAN FILTER STATUS TOKO untuk pelanggan
+        if (!$user || $user->role !== 'MERCHANT') {
+            $menus = $menus->whereHas('merchant', function ($q) {
+                $q->where('status_toko', 'BUKA');
+            });
+        }
+        
+        $menus = $menus->get();
         return response()->json(['success' => true, 'data' => $menus]);
     }
 

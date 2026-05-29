@@ -8,6 +8,7 @@ use App\Http\Controllers\PesananController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\MerchantController;
 
+
 // ─── PUBLIC ──────────────────────────────────
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login',    [AuthController::class, 'login']);
@@ -19,11 +20,16 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me',      [AuthController::class, 'me']);
+    Route::put('/profile', [AuthController::class, 'updateProfile']);
+    Route::put('/password', [AuthController::class, 'updatePassword']);
+    Route::post('/upload-photo', [AuthController::class, 'uploadPhoto']);
 
     // Menu (Merchant)
     Route::post('/menus',          [MenuController::class, 'store']);
     Route::put('/menus/{id}',      [MenuController::class, 'update']);
     Route::delete('/menus/{id}',   [MenuController::class, 'destroy']);
+    Route::get('/merchant/status', [MerchantController::class, 'getStatus']);
+    Route::put('/merchant/status', [MerchantController::class, 'updateStatus']);
 
     // Pesanan
     Route::get('/pesanans',                    [PesananController::class, 'index']);

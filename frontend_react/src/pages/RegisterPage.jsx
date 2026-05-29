@@ -18,11 +18,60 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
 
   const submit = async e => {
-    e.preventDefault();
-    if (form.password.length < 6) { 
-        toast("Password minimal 6 karakter", "warn"); 
-        return; 
+  e.preventDefault();
+  
+  // Validasi Nama
+  if (!form.nama || form.nama.trim().length < 3) {
+    toast("Nama minimal 3 karakter", "error");
+    return;
+  }
+  if (form.nama.length > 100) {
+    toast("Nama maksimal 100 karakter", "error");
+    return;
+  }
+  
+  // Validasi Username
+  if (!form.username || form.username.trim().length < 3) {
+    toast("Username minimal 3 karakter", "error");
+    return;
+  }
+  if (form.username.includes(' ')) {
+    toast("Username tidak boleh mengandung spasi", "error");
+    return;
+  }
+  
+  // Validasi Password
+  if (!form.password) {
+    toast("Password wajib diisi", "error");
+    return;
+  }
+  if (form.password.length < 6) {
+    toast("Password minimal 6 karakter", "error");
+    return;
+  }
+  if (form.password.length > 255) {
+    toast("Password maksimal 255 karakter", "error");
+    return;
+  }
+  
+  // Validasi Role
+  if (!form.role) {
+    toast("Pilih role sebagai Pelanggan atau Merchant", "error");
+    return;
+  }
+  
+  // Validasi Foto Profil (jika ada)
+  if (form.foto_profil) {
+    if (form.foto_profil.size > 2 * 1024 * 1024) {
+      toast("Ukuran gambar maksimal 2MB", "error");
+      return;
     }
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif'];
+    if (!allowedTypes.includes(form.foto_profil.type)) {
+      toast("Format harus JPG, PNG, atau GIF", "error");
+      return;
+    }
+  }
     setLoading(true);
     try {
       const fd = new FormData();

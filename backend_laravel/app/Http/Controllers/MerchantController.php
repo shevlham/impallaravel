@@ -35,4 +35,41 @@ class MerchantController extends Controller
             ]
         ]);
     }
+    public function updateStatus(Request $request)
+    {
+        $request->validate([
+            'status_toko' => 'required|in:BUKA,TUTUP'
+        ]);
+
+        $merchant = $request->user()->merchant;
+        
+        if (!$merchant) {
+            return response()->json(['message' => 'Merchant tidak ditemukan'], 404);
+        }
+
+        $merchant->update(['status_toko' => $request->status_toko]);
+
+        return response()->json([
+            'success' => true,
+            'data' => $merchant,
+            'message' => 'Status toko berhasil diubah menjadi ' . $request->status_toko
+        ]);
+    }
+        public function getStatus(Request $request)
+    {
+        $merchant = $request->user()->merchant;
+        
+        if (!$merchant) {
+            return response()->json([
+                'success' => false, 
+                'message' => 'Merchant tidak ditemukan'
+            ], 404);
+        }
+        return response()->json([
+            'success' => true, 
+            'data' => [
+                'status_toko' => $merchant->status_toko ?? 'BUKA'
+            ]
+        ]);
+    }
 }

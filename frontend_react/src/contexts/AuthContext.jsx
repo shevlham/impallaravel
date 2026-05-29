@@ -34,6 +34,11 @@ export function AuthProvider({ children }) {
     localStorage.removeItem("te_token");
   }, [token]);
 
+  const updateUser = useCallback((updatedUser) => {
+    setUser(updatedUser);
+    localStorage.setItem("te_user", JSON.stringify(updatedUser));
+  }, []);
+
   return (
     <AuthCtx.Provider value={{ user, token, login, logout }}>
         {children}
