@@ -1,21 +1,40 @@
 export const C = {
-  red: "#DC2626",
-  redDark: "#B91C1C",
-  redLight: "#FEE2E2",
-  blue: "#1D4ED8",
-  blueDark: "#1E3A8A",
-  blueMid: "#3B82F6",
-  blueLight: "#DBEAFE",
+  // Brand primary — warm TelEat red (matching reference design)
+  red: "#F04438",
+  redDark: "#D92D20",
+  redLight: "#FEF3F2",
+  redMid: "#FDA29B",
+
+  // Blue accent
+  blue: "#1570EF",
+  blueDark: "#1849A9",
+  blueMid: "#2E90FA",
+  blueLight: "#EFF8FF",
+
+  // Neutrals
   white: "#FFFFFF",
-  offWhite: "#F8FAFC",
-  gray50: "#F1F5F9",
-  gray100: "#E2E8F0",
-  gray200: "#CBD5E1",
-  gray400: "#94A3B8",
-  gray600: "#475569",
-  gray800: "#1E293B",
-  gray900: "#0F172A",
-  success: "#16A34A",
-  warn: "#D97706",
-  danger: "#DC2626",
+  offWhite: "#F9FAFB",
+  gray50: "#F2F4F7",
+  gray100: "#EAECF0",
+  gray200: "#D0D5DD",
+  gray400: "#98A2B3",
+  gray500: "#667085",
+  gray600: "#475467",
+  gray700: "#344054",
+  gray800: "#1D2939",
+  gray900: "#101828",
+
+  // Status
+  success: "#12B76A",
+  successLight: "#ECFDF3",
+  warn: "#F79009",
+  warnLight: "#FFFAEB",
+  danger: "#F04438",
+  dangerLight: "#FEF3F2",
+
+  // Sidebar
+  sidebarBg: "#101828",
+  sidebarActive: "#1D2939",
+  sidebarText: "#98A2B3",
+  sidebarTextActive: "#FFFFFF",
 };

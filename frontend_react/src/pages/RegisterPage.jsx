@@ -18,60 +18,60 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
 
   const submit = async e => {
-  e.preventDefault();
-  
-  // Validasi Nama
-  if (!form.nama || form.nama.trim().length < 3) {
-    toast("Nama minimal 3 karakter", "error");
-    return;
-  }
-  if (form.nama.length > 100) {
-    toast("Nama maksimal 100 karakter", "error");
-    return;
-  }
-  
-  // Validasi Username
-  if (!form.username || form.username.trim().length < 3) {
-    toast("Username minimal 3 karakter", "error");
-    return;
-  }
-  if (form.username.includes(' ')) {
-    toast("Username tidak boleh mengandung spasi", "error");
-    return;
-  }
-  
-  // Validasi Password
-  if (!form.password) {
-    toast("Password wajib diisi", "error");
-    return;
-  }
-  if (form.password.length < 6) {
-    toast("Password minimal 6 karakter", "error");
-    return;
-  }
-  if (form.password.length > 255) {
-    toast("Password maksimal 255 karakter", "error");
-    return;
-  }
-  
-  // Validasi Role
-  if (!form.role) {
-    toast("Pilih role sebagai Pelanggan atau Merchant", "error");
-    return;
-  }
-  
-  // Validasi Foto Profil (jika ada)
-  if (form.foto_profil) {
-    if (form.foto_profil.size > 2 * 1024 * 1024) {
-      toast("Ukuran gambar maksimal 2MB", "error");
+    e.preventDefault();
+
+    // Validasi Nama
+    if (!form.nama || form.nama.trim().length < 3) {
+      toast("Nama minimal 3 karakter", "error");
       return;
     }
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif'];
-    if (!allowedTypes.includes(form.foto_profil.type)) {
-      toast("Format harus JPG, PNG, atau GIF", "error");
+    if (form.nama.length > 100) {
+      toast("Nama maksimal 100 karakter", "error");
       return;
     }
-  }
+
+    // Validasi Username
+    if (!form.username || form.username.trim().length < 3) {
+      toast("Username minimal 3 karakter", "error");
+      return;
+    }
+    if (form.username.includes(' ')) {
+      toast("Username tidak boleh mengandung spasi", "error");
+      return;
+    }
+
+    // Validasi Password
+    if (!form.password) {
+      toast("Password wajib diisi", "error");
+      return;
+    }
+    if (form.password.length < 6) {
+      toast("Password minimal 6 karakter", "error");
+      return;
+    }
+    if (form.password.length > 255) {
+      toast("Password maksimal 255 karakter", "error");
+      return;
+    }
+
+    // Validasi Role
+    if (!form.role) {
+      toast("Pilih role sebagai Pelanggan atau Merchant", "error");
+      return;
+    }
+
+    // Validasi Foto Profil (jika ada)
+    if (form.foto_profil) {
+      if (form.foto_profil.size > 2 * 1024 * 1024) {
+        toast("Ukuran gambar maksimal 2MB", "error");
+        return;
+      }
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif'];
+      if (!allowedTypes.includes(form.foto_profil.type)) {
+        toast("Format harus JPG, PNG, atau GIF", "error");
+        return;
+      }
+    }
     setLoading(true);
     try {
       const fd = new FormData();
@@ -88,10 +88,10 @@ export default function RegisterPage() {
       login(res.user, res.token);
       toast("Akun berhasil dibuat! 🎉");
       navigate("/");
-    } catch (err) { 
-        toast(err.message, "error"); 
-    } finally { 
-        setLoading(false); 
+    } catch (err) {
+      toast(err.message, "error");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -133,12 +133,17 @@ export default function RegisterPage() {
           </div>
         </div>
 
+        <BtnRed full disabled={loading} style={{ marginTop: 24 }}>
+          {loading ? (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" style={{ animation: "spin .8s linear infinite" }}><circle cx="12" cy="12" r="10" strokeDasharray="30 30" /></svg>
+              Mendaftar
+            </span>
+          ) : "Buat Akun"}
+        </BtnRed>
+
         <Divider />
         <GoogleSignInBtn />
-
-        <BtnRed full disabled={loading} style={{ marginTop: 24 }}>
-          {loading ? "Mendaftar…" : "Buat Akun"}
-        </BtnRed>
       </form>
 
       <p style={{ textAlign: "center", marginTop: 24, color: C.gray400, fontSize: 14 }}>

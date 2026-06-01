@@ -43,6 +43,74 @@ input:focus, select:focus { outline: 2px solid var(--blue); outline-offset: 1px;
 .btn-hover:hover  { filter: brightness(1.07); }
 .btn-hover:active { transform: scale(.97); }
 
+/* Ambient Decorative Glow */
+.ambient-glow-wrapper {
+  position: relative;
+  overflow: hidden;
+}
+.ambient-glow-circle-1 {
+  position: absolute;
+  width: 250px;
+  height: 250px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(220,38,38,0.06) 0%, transparent 70%);
+  filter: blur(40px);
+  top: -80px;
+  right: -50px;
+  pointer-events: none;
+  z-index: 0;
+}
+.ambient-glow-circle-2 {
+  position: absolute;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(29,78,216,0.05) 0%, transparent 70%);
+  filter: blur(50px);
+  bottom: -100px;
+  left: -80px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Logo highlight style */
+.logo-glow-effect {
+  border: 1.5px solid rgba(220, 38, 38, 0.4);
+  box-shadow: 0 0 10px rgba(220, 38, 38, 0.25), inset 0 0 4px rgba(220, 38, 38, 0.1);
+  transition: border-color 0.3s, box-shadow 0.3s, transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.logo-glow-effect:hover {
+  border-color: rgba(220, 38, 38, 0.95);
+  box-shadow: 0 0 18px rgba(220, 38, 38, 0.65), inset 0 0 6px rgba(220, 38, 38, 0.2);
+  transform: scale(1.07) rotate(2deg);
+}
+
+/* Custom premium card glows on hover */
+.card-lift-blue, .card-lift-red, .card-lift-yellow, .card-lift-green {
+  transition: transform 0.25s cubic-bezier(0.165, 0.84, 0.44, 1), box-shadow 0.25s cubic-bezier(0.165, 0.84, 0.44, 1), border-color 0.25s;
+}
+.card-lift-blue:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 25px rgba(29, 78, 216, 0.12), 0 3px 8px rgba(29, 78, 216, 0.05);
+  border-color: rgba(29, 78, 216, 0.2) !important;
+}
+.card-lift-red:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 25px rgba(220, 38, 38, 0.12), 0 3px 8px rgba(220, 38, 38, 0.05);
+  border-color: rgba(220, 38, 38, 0.2) !important;
+}
+.card-lift-yellow:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 25px rgba(217, 119, 6, 0.12), 0 3px 8px rgba(217, 119, 6, 0.05);
+  border-color: rgba(217, 119, 6, 0.2) !important;
+}
+.card-lift-green:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 25px rgba(22, 163, 74, 0.12), 0 3px 8px rgba(22, 163, 74, 0.05);
+  border-color: rgba(22, 163, 74, 0.2) !important;
+}
+
+
 @media (max-width: 767px)  { .hide-mobile  { display: none !important; } }
 @media (min-width: 768px)  { .hide-desktop { display: none !important; } }
 

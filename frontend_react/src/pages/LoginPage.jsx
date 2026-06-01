@@ -10,6 +10,16 @@ import Divider from "../components/ui/Divider";
 import GoogleSignInBtn from "../components/ui/GoogleSignInBtn";
 import { BtnRed } from "../components/ui/Button";
 
+const EyeIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>;
+const EyeOffIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" /><line x1="1" y1="1" x2="23" y2="23" /></svg>;
+
+function getDefaultPath(user) {
+  if (!user) return "/";
+  if (user.role === "MERCHANT") return "/dashboard";
+  if (user.role === "ADMIN") return "/admin";
+  return "/";
+}
+
 export default function LoginPage() {
   const { login } = useAuth();
   const toast = useToast();
@@ -19,17 +29,17 @@ export default function LoginPage() {
   const [showPw, setShowPw] = useState(false);
 
   const submit = async e => {
-    e.preventDefault(); 
+    e.preventDefault();
     setLoading(true);
     try {
       const res = await apiFetch("POST", "/login", form);
       login(res.user, res.token);
-      toast("Selamat datang kembali! 👋");
-      navigate("/");
-    } catch (err) { 
-        toast(err.message, "error"); 
-    } finally { 
-        setLoading(false); 
+      toast("Selamat datang kembali!");
+      navigate(getDefaultPath(res.user));
+    } catch (err) {
+      toast(err.message, "error");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -50,17 +60,23 @@ export default function LoginPage() {
               style={{ ...inputStyle, paddingRight: 42 }} />
             <button type="button" onClick={() => setShowPw(!showPw)} style={{
               position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)",
-              background: "none", border: "none", cursor: "pointer", fontSize: 16, color: C.gray400, lineHeight: 1,
-            }}>{showPw ? "🙈" : "👁"}</button>
+              background: "none", border: "none", cursor: "pointer", color: C.gray400,
+              display: "flex", alignItems: "center", padding: 0,
+            }}>{showPw ? <EyeOffIcon /> : <EyeIcon />}</button>
           </div>
         </div>
 
+        <BtnRed full disabled={loading} style={{ marginTop: 24 }}>
+          {loading ? (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" style={{ animation: "spin .8s linear infinite" }}><circle cx="12" cy="12" r="10" strokeDasharray="30 30" /></svg>
+              Masuk
+            </span>
+          ) : "Masuk"}
+        </BtnRed>
+
         <Divider />
         <GoogleSignInBtn />
-
-        <BtnRed full disabled={loading} style={{ marginTop: 24 }}>
-          {loading ? "Masuk…" : "Masuk"}
-        </BtnRed>
       </form>
 
       <p style={{ textAlign: "center", marginTop: 24, color: C.gray400, fontSize: 14 }}>

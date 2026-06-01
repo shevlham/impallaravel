@@ -7,6 +7,13 @@ import Spinner from "../components/ui/Spinner";
 import Empty from "../components/ui/Empty";
 import { BtnRed, BtnBlue, BtnGhost } from "../components/ui/Button";
 
+// ─── SVG Icons ────────────────────────────────────────────────────────────────
+const IcOrders   = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="2"/><path d="M9 12h6M9 16h4"/></svg>;
+const IcPlate    = () => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={C.gray300} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l2 2"/></svg>;
+const IcNote     = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>;
+const IcRefresh  = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>;
+const IcCancel   = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
+
 const STATUS_CFG = {
   PENDING: { color: C.warn, bg: "#FEF3C7" },
   DIPROSES: { color: C.blue, bg: C.blueLight },
@@ -60,9 +67,29 @@ export default function OrderPage() {
 
   return (
     <div className="page-enter">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-        <h2 style={{ fontFamily: "'Sora',sans-serif", fontSize: 22, fontWeight: 800, color: C.gray900 }}>📋 Pesanan</h2>
-        <BtnGhost small onClick={load}>↻ Refresh</BtnGhost>
+      <div style={{
+        position: "sticky",
+        top: 0,
+        zIndex: 100,
+        background: "rgba(248, 250, 252, 0.85)",
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+        padding: "24px 28px 20px 28px",
+        margin: "0 -28px 20px -28px",
+        borderBottom: `1px solid ${C.gray100}`,
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        boxShadow: "0 4px 20px rgba(15, 23, 42, 0.02)",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 38, height: 38, borderRadius: 9, background: C.redLight, display: "flex", alignItems: "center", justifyContent: "center", color: C.red }}><IcOrders /></div>
+          <div>
+            <h2 style={{ fontFamily: "'Sora',sans-serif", fontSize: 19, fontWeight: 800, color: C.gray900, lineHeight: 1.2 }}>Pesanan</h2>
+            <p style={{ fontSize: 12, color: C.gray400, marginTop: 2 }}>Riwayat & status pesanan Anda</p>
+          </div>
+        </div>
+        <BtnGhost small onClick={load} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><IcRefresh /> Refresh</BtnGhost>
       </div>
 
       {/* Filter */}
@@ -76,7 +103,11 @@ export default function OrderPage() {
       </div>
 
       {loading ? <Spinner /> : shown.length === 0
-        ? <Empty icon="📋" title="Belum ada pesanan" sub="Pesanan akan muncul di sini" />
+        ? <div style={{ padding: "40px 0", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+            <IcOrders />
+            <div style={{ fontWeight: 600, fontSize: 14, color: C.gray600 }}>Belum ada pesanan</div>
+            <div style={{ fontSize: 12, color: C.gray400 }}>Pesanan akan muncul di sini</div>
+          </div>
         : (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {shown.map(p => {
@@ -121,9 +152,8 @@ export default function OrderPage() {
                           display: !d.menu?.gambar ? 'flex' : 'none',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          fontSize: 24
                         }}>
-                          🍽️
+                          <IcPlate />
                         </div>
                         
                         <div style={{ flex: 1 }}>
@@ -150,12 +180,13 @@ export default function OrderPage() {
                       <div style={{ 
                         fontSize: 11, 
                         fontWeight: 700, 
-                        color: C.black, 
+                        color: C.gray700, 
                         marginBottom: 4,
                         display: "flex",
                         alignItems: "center",
+                        gap: 5,
                       }}>
-                        <span></span> Catatan Pesanan
+                        <span style={{ display: "flex", color: C.gray500 }}><IcNote /></span> Catatan Pesanan
                       </div>
                       <div style={{ 
                         fontSize: 12, 
@@ -180,7 +211,7 @@ export default function OrderPage() {
                       {p.status === "PENDING" && <>
                         <BtnBlue small onClick={() => updateStatus(p.id, "DIPROSES")}>Proses</BtnBlue>
                         <BtnRed small onClick={() => updateStatus(p.id, "SELESAI")}>Selesai</BtnRed>
-                        <BtnGhost small danger onClick={() => updateStatus(p.id, "BATAL")}>✕ Batal</BtnGhost>
+                        <BtnGhost small danger onClick={() => updateStatus(p.id, "BATAL")} style={{ display:"inline-flex",alignItems:"center",gap:4 }}><IcCancel /> Batal</BtnGhost>
                       </>}
                       {p.status === "DIPROSES" && <BtnRed small onClick={() => updateStatus(p.id, "SELESAI")}>Selesai</BtnRed>}
                     </div>

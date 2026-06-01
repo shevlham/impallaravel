@@ -7,6 +7,7 @@ use App\Http\Controllers\MenuController;
 use App\Http\Controllers\PesananController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\MerchantController;
+use App\Http\Controllers\PaymentController;
 
 
 // ─── PUBLIC ──────────────────────────────────
@@ -14,6 +15,7 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login',    [AuthController::class, 'login']);
 Route::get('/menus',     [MenuController::class, 'index']);
 Route::post('/auth/google/callback', [AuthController::class, 'googleCallback']);
+Route::post('/payment/webhook', [PaymentController::class, 'webhook']);
 
 // ─── AUTH REQUIRED ───────────────────────────
 Route::middleware('auth:sanctum')->group(function () {
@@ -48,4 +50,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('role:MERCHANT')->prefix('merchant')->group(function () {
         Route::get('/dashboard',       [MerchantController::class, 'dashboard']);
     });
+
+    // Payment 
+    Route::post('/payment/create', [PaymentController::class, 'createInvoice']);
+    Route::get('/orders/{id}',     [PaymentController::class, 'getOrderStatus']);
 });
