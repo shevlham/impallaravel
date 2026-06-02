@@ -3,23 +3,35 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use App\Models\Order;
 use App\Models\Pesanan;
 use App\Models\Transaksi;
 use Carbon\Carbon;
+use Midtrans\Config;
+use Midtrans\Snap;
 
 class PaymentController extends Controller
 {
+    public function __construct()
+    {
+        Config::$serverKey = env('MIDTRANS_SERVER_KEY');
+        Config::$isProduction = env('MIDTRANS_IS_PRODUCTION', false);
+        Config::$isSanitized = true;
+        Config::$is3ds = true;
+        Config::$curlOptions = [
+            CURLOPT_SSL_VERIFYHOST => 0,
+            CURLOPT_SSL_VERIFYPEER => 0,
+            CURLOPT_HTTPHEADER => []
+        ];
+    }
+
     public function createInvoice(Request $request)
     {
         $request->validate([
             'email' => 'required|email',
             'order_id' => 'required'
         ]);
-
-        $apiKey = env('XENDIT_SECRET_KEY');
 
         // Ambil order dari database
         $order = Order::find($request->order_id);
@@ -31,13 +43,13 @@ class PaymentController extends Controller
                 $user = $request->user();
                 $totalBayar = $pesanan->transaksi ? (int)$pesanan->transaksi->total_bayar : 0;
                 
-                // Buat record order secara dinamis agar terintegrasi sempurna dengan Xendit
+                // Buat record order secara dinamis
                 $order = Order::create([
                     'id' => $pesanan->id, // Samakan ID agar memudahkan tracking
                     'user_id' => $user ? $user->id : ($pesanan->pelanggan->user_id ?? 1),
                     'total_price' => $totalBayar,
                     'status' => 'PENDING',
-                    'payment_method' => $pesanan->transaksi ? $pesanan->transaksi->metode_bayar : 'XENDIT',
+                    'payment_method' => $pesanan->transaksi ? $pesanan->transaksi->metode_bayar : 'MIDTRANS',
                 ]);
             } else {
                 return response()->json([
@@ -46,143 +58,89 @@ class PaymentController extends Controller
             }
         }
 
-        // ID unik invoice
+        // ID unik external untuk order
         $externalId = 'order-' . $order->id . '-' . time();
+        $order->update(['external_id' => $externalId]);
 
-        $payload = [
-            'external_id' => $externalId,
-            'amount' => (int) $order->total_price, // Selalu ambil dari database untuk keamanan (anti price tampering)
-            'payer_email' => $request->email,
-            'description' => 'Pembayaran TelEat Order #' . $order->id,
-            'success_redirect_url' => 'http://localhost:3000/payment/success',
-            'failure_redirect_url' => 'http://localhost:3000/payment/failed',
-        ];
+        $params = array(
+            'transaction_details' => array(
+                'order_id' => $externalId,
+                'gross_amount' => (int) $order->total_price,
+            ),
+            'customer_details' => array(
+                'first_name' => $request->user() ? $request->user()->username : 'Customer',
+                'email' => $request->email,
+            ),
+        );
 
-        $response = Http::withBasicAuth($apiKey, '')
-            ->post('https://api.xendit.co/v2/invoices', $payload);
-
-        if (!$response->successful()) {
-            Log::error('Gagal membuat invoice Xendit:', [
+        try {
+            $snapToken = Snap::getSnapToken($params);
+            
+            return response()->json([
+                'snap_token' => $snapToken,
+                'external_id' => $externalId
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Gagal membuat Snap Token Midtrans:', [
                 'order_id' => $order->id,
-                'response' => $response->body()
+                'error' => $e->getMessage()
             ]);
             return response()->json([
-                'message' => 'Gagal membuat invoice',
-                'error' => $response->body()
+                'message' => 'Gagal membuat Snap Token',
+                'error' => $e->getMessage()
             ], 500);
         }
-
-        $data = $response->json();
-
-        // Simpan invoice id & external id ke database
-        $order->update([
-            'xendit_invoice_id' => $data['id'],
-            'external_id' => $externalId,
-            'status' => 'PENDING'
-        ]);
-
-        return response()->json([
-            'invoice_url' => $data['invoice_url'],
-            'invoice_id' => $data['id'],
-            'external_id' => $externalId
-        ]);
     }
 
     public function webhook(Request $request)
     {
-        // 1. Simpan semua payload webhook ke log Laravel untuk debugging
-        Log::info('Xendit Webhook payload received:', $request->all());
-
-        // 2. Validasi keamanan webhook (X-Callback-Token)
-        $callbackToken = env('XENDIT_CALLBACK_TOKEN');
-        $requestToken = $request->header('x-callback-token');
-
-        if ($callbackToken && $requestToken !== $callbackToken) {
-            Log::warning('Xendit Webhook: Invalid callback token attempt', [
-                'expected' => $callbackToken,
-                'received' => $requestToken
-            ]);
-            return response()->json([
-                'message' => 'Unauthorized signature'
-            ], 401);
-        }
+        Log::info('Midtrans Webhook payload received:', $request->all());
 
         $data = $request->all();
-        $status = $data['status'] ?? null;
-        $externalId = $data['external_id'] ?? null;
+        $status = $data['transaction_status'] ?? null;
+        $externalId = $data['order_id'] ?? null;
+        $fraudStatus = $data['fraud_status'] ?? null;
 
         if (!$externalId) {
             return response()->json([
-                'message' => 'External ID is required'
+                'message' => 'Order ID (external_id) is required'
             ], 400);
         }
 
-        // 3. Gunakan external_id sebagai primary reference untuk update order
         $order = Order::where('external_id', $externalId)->first();
 
         if (!$order) {
-            Log::error('Xendit Webhook: Order not found for external_id: ' . $externalId);
+            Log::error('Midtrans Webhook: Order not found for external_id: ' . $externalId);
             return response()->json([
                 'message' => 'Order not found'
             ], 404);
         }
 
-        // 4. PROTECTION (IDEMPOTENCY) - Jangan update order yang sudah PAID
         if ($order->status === 'PAID') {
-            Log::info('Xendit Webhook: Order is already PAID. Skipping update.', [
-                'order_id' => $order->id,
-                'external_id' => $externalId
-            ]);
+            Log::info('Midtrans Webhook: Order is already PAID. Skipping update.');
             return response()->json([
                 'message' => 'Order already processed (PAID)'
             ]);
         }
 
-        // 5. Tambahkan validasi status Xendit (PAID, SETTLED, EXPIRED)
-        if ($status === 'PAID' || $status === 'SETTLED') {
-            $order->update([
-                'status' => 'PAID',
-                'paid_at' => Carbon::now()
-            ]);
-
-            // Sync status ke tabel `pesanans` dan `transaksis` yang bersangkutan
+        // Handle transaction status
+        if ($status == 'capture') {
+            if ($fraudStatus == 'challenge') {
+                $order->update(['status' => 'PENDING']);
+            } else if ($fraudStatus == 'accept') {
+                $this->markOrderAsPaid($order, $externalId);
+            }
+        } else if ($status == 'settlement') {
+            $this->markOrderAsPaid($order, $externalId);
+        } else if ($status == 'cancel' || $status == 'deny' || $status == 'expire') {
+            $order->update(['status' => 'EXPIRED']);
             $pesanan = Pesanan::find($order->id);
             if ($pesanan) {
-                $pesanan->update([
-                    'status' => 'DIPROSES' // Ubah status pesanan ke DIPROSES agar Merchant bisa memproses makanan
-                ]);
-                if ($pesanan->transaksi) {
-                    $pesanan->transaksi->update([
-                        'status_bayar' => 'LUNAS' // Tandai transaksi sebagai LUNAS
-                    ]);
-                }
+                $pesanan->update(['status' => 'BATAL']);
             }
-
-            Log::info('Xendit Webhook: Order, Pesanan, and Transaksi successfully updated to PAID/LUNAS.', [
-                'order_id' => $order->id,
-                'external_id' => $externalId
-            ]);
-        } elseif ($status === 'EXPIRED') {
-            $order->update([
-                'status' => 'EXPIRED'
-            ]);
-
-            $pesanan = Pesanan::find($order->id);
-            if ($pesanan) {
-                $pesanan->update([
-                    'status' => 'BATAL' // Jika expired, batalkan pesanan
-                ]);
-            }
-
-            Log::info('Xendit Webhook: Order and Pesanan marked as EXPIRED/BATAL.', [
-                'order_id' => $order->id,
-                'external_id' => $externalId
-            ]);
-        } else {
-            Log::info('Xendit Webhook: Unhandled status received: ' . $status, [
-                'order_id' => $order->id,
-                'external_id' => $externalId
-            ]);
+            Log::info('Midtrans Webhook: Order marked as EXPIRED/BATAL.');
+        } else if ($status == 'pending') {
+            $order->update(['status' => 'PENDING']);
         }
 
         return response()->json([
@@ -190,13 +148,37 @@ class PaymentController extends Controller
         ]);
     }
 
+    private function markOrderAsPaid($order, $externalId) 
+    {
+        $order->update([
+            'status' => 'PAID',
+            'paid_at' => Carbon::now()
+        ]);
+
+        // Sync status ke tabel `pesanans` dan `transaksis` yang bersangkutan
+        $pesanan = Pesanan::find($order->id);
+        if ($pesanan) {
+            $pesanan->update([
+                'status' => 'DIPROSES' // Ubah status pesanan ke DIPROSES agar Merchant bisa memproses makanan
+            ]);
+            if ($pesanan->transaksi) {
+                $pesanan->transaksi->update([
+                    'status_bayar' => 'LUNAS' // Tandai transaksi sebagai LUNAS
+                ]);
+            }
+        }
+
+        Log::info('Midtrans Webhook: Order successfully updated to PAID/LUNAS.', [
+            'order_id' => $order->id,
+            'external_id' => $externalId
+        ]);
+    }
+
     public function getOrderStatus(Request $request, $id)
     {
-        // Temukan order berdasarkan ID
         $order = Order::find($id);
 
         if (!$order) {
-            // Coba cari di Pesanan jika belum tercatat di Order
             $pesanan = Pesanan::with('transaksi')->find($id);
             if ($pesanan) {
                 return response()->json([
@@ -210,14 +192,6 @@ class PaymentController extends Controller
             return response()->json([
                 'message' => 'Order tidak ditemukan'
             ], 404);
-        }
-
-        // Opsional: Validasi keamanan agar user hanya bisa melihat order miliknya
-        $user = $request->user();
-        if ($user && $order->user_id !== $user->id && $user->role !== 'ADMIN') {
-            return response()->json([
-                'message' => 'Anda tidak memiliki akses ke order ini'
-            ], 403);
         }
 
         return response()->json([

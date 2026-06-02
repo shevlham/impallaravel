@@ -21,7 +21,7 @@ export default function Modal({ open, onClose, title, children }) {
         position: "fixed", inset: 0, background: "rgba(16,24,40,.5)",
         backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)",
         display: "flex", alignItems: "center", justifyContent: "center",
-        zIndex: 500, padding: 16,
+        zIndex: 10100, padding: 16,
       }}
       onClick={e => e.target === e.currentTarget && onClose()}
     >

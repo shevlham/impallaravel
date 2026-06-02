@@ -1,11 +1,12 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { C } from "../styles/tokens";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../contexts/ToastContext";
 import { apiFetch } from "../services/api";
 import Spinner from "../components/ui/Spinner";
-import Empty from "../components/ui/Empty";
 import { BtnRed, BtnBlue, BtnGhost } from "../components/ui/Button";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import QRCode from "react-qr-code";
 
 // ─── SVG Icons ────────────────────────────────────────────────────────────────
 const IcOrders = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" /><rect x="9" y="3" width="6" height="4" rx="2" /><path d="M9 12h6M9 16h4" /></svg>;
@@ -15,6 +16,7 @@ const IcStore = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none
 const IcRefresh = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></svg>;
 const IcAlert = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>;
 const IcCancel = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>;
+const IcQr = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /></svg>;
 
 const STATUS_CFG = {
   PENDING: { color: C.warn, bg: "#FEF3C7" },
@@ -27,20 +29,42 @@ export default function MerchantDashboard() {
   const { user, token } = useAuth();
   const isMerchant = user?.role === "MERCHANT";
   const toast = useToast();
+
+  const [activeTab, setActiveTab] = useState("PESANAN"); // PESANAN or QR
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [statusToko, setStatusToko] = useState("BUKA");
   const [updating, setUpdating] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+
+
+  const lastPendingCount = useRef(0);
+
+  const load = useCallback(async (isPolling = false) => {
+    if (!isPolling) setLoading(true);
     try {
       const s = await apiFetch("GET", "/merchant/dashboard", null, token);
+
+      // Notifikasi pesanan baru
+      if (s.data && s.data.pesanans) {
+        const currentPending = s.data.pesanans.filter(p => p.status === 'PENDING');
+        if (isPolling && currentPending.length > lastPendingCount.current) {
+          // Ada pesanan baru
+          const newOrder = currentPending[0]; // ambil yang terbaru (karena latest())
+          const mejaInfo = newOrder.nomor_meja ? ` dari Meja ${newOrder.nomor_meja}` : '';
+          toast(`Pesanan baru masuk${mejaInfo}!`, "success");
+          // Play sound
+          const audio = new Audio('https://www.soundjay.com/buttons/sounds/button-3.mp3');
+          audio.play().catch(e => console.log('Audio play error', e));
+        }
+        lastPendingCount.current = currentPending.length;
+      }
+
       setStats(s.data);
     } catch (e) {
-      toast(e.message, "error");
+      if (!isPolling) toast(e.message, "error");
     } finally {
-      setLoading(false);
+      if (!isPolling) setLoading(false);
     }
   }, [token, toast]);
 
@@ -48,7 +72,6 @@ export default function MerchantDashboard() {
     if (!isMerchant) return;
     try {
       const r = await apiFetch("GET", "/merchant/status", null, token);
-      console.log("[DEBUG] status toko:", r.data);
       setStatusToko(r.data.status_toko);
     } catch (e) {
       console.error(e);
@@ -70,7 +93,14 @@ export default function MerchantDashboard() {
 
   useEffect(() => {
     load();
-    loadStatusToko(); // ← PANGGIL loadStatusToko
+    loadStatusToko();
+
+    // Polling setiap 10 detik
+    const interval = setInterval(() => {
+      load(true);
+    }, 10000);
+
+    return () => clearInterval(interval);
   }, [load, loadStatusToko]);
 
   const updateStatus = async (id, status) => {
@@ -91,10 +121,11 @@ export default function MerchantDashboard() {
 
 
   return (
-    <div className="page-enter ambient-glow-wrapper" style={{ position: "relative", minHeight: "100%" }}>
-      {/* Ambient background decoration blobs */}
-      <div className="ambient-glow-circle-1" />
-      <div className="ambient-glow-circle-2" />
+    <div className="page-enter" style={{ position: "relative", minHeight: "100%" }}>
+      <div style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none", zIndex: 0 }}>
+        <div className="ambient-glow-circle-1" />
+        <div className="ambient-glow-circle-2" />
+      </div>
 
       <div style={{ position: "relative", zIndex: 1 }}>
         <div style={{
@@ -111,7 +142,7 @@ export default function MerchantDashboard() {
           justifyContent: "space-between",
           alignItems: "center",
           boxShadow: "0 4px 20px rgba(15, 23, 42, 0.02)",
-        }}>
+        }} className="responsive-header">
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ width: 38, height: 38, borderRadius: 9, background: C.blueLight, display: "flex", alignItems: "center", justifyContent: "center", color: C.blue }}><IcStore /></div>
             <div>
@@ -119,152 +150,251 @@ export default function MerchantDashboard() {
               <p style={{ fontSize: 12, color: C.gray400, marginTop: 2 }}>Pantau pesanan dan status toko Anda</p>
             </div>
           </div>
-          <BtnGhost small onClick={load} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><IcRefresh /> Refresh</BtnGhost>
+          <BtnGhost small onClick={() => load(false)} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><IcRefresh /> Refresh</BtnGhost>
         </div>
 
-        {/* CARD STATUS TOKO - Glassmorphism Control Panel */}
-        <div style={{
-          background: "rgba(255, 255, 255, 0.7)",
-          backdropFilter: "blur(10px)",
-          WebkitBackdropFilter: "blur(10px)",
-          borderRadius: 16,
-          padding: "20px",
-          marginBottom: 24,
-          border: "1px solid rgba(226, 232, 240, 0.8)",
-          boxShadow: "0 8px 32px rgba(15, 23, 42, 0.03)",
-        }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 }}>
-            <div>
-              <div style={{ fontSize: 13, color: C.gray500, marginBottom: 4 }}>Status Toko</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-                <div style={{ width: 10, height: 10, borderRadius: "50%", background: statusToko === "BUKA" ? C.success : C.red, boxShadow: statusToko === "BUKA" ? `0 0 0 3px ${C.successLight}` : `0 0 0 3px ${C.redLight}` }} />
-                <span style={{ fontSize: 20, fontWeight: 800, color: C.gray900, fontFamily: "'Sora',sans-serif" }}>
-                  {statusToko === "BUKA" ? "TOKO BUKA" : "TOKO TUTUP"}
-                </span>
-              </div>
-              <div style={{ fontSize: 12, color: C.gray500, marginTop: 6 }}>
-                {statusToko === "BUKA"
-                  ? "Menu Anda terlihat oleh pelanggan"
-                  : "Menu Anda tidak terlihat oleh pelanggan"}
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: 12 }}>
-              <button
-                onClick={() => updateStatusToko("BUKA")}
-                disabled={updating || statusToko === "BUKA"}
-                style={{
-                  padding: "8px 20px",
-                  borderRadius: 99,
-                  border: `1px solid ${statusToko === "BUKA" ? C.success : C.gray300}`,
-                  fontWeight: 700,
-                  fontSize: 13,
-                  cursor: statusToko === "BUKA" ? "default" : "pointer",
-                  background: statusToko === "BUKA" ? C.success : C.white,
-                  color: statusToko === "BUKA" ? C.white : C.gray700,
-                  boxShadow: statusToko === "BUKA" ? `0 6px 20px ${C.success}45` : "none",
-                  transition: "all .2s ease",
-                  opacity: statusToko === "BUKA" ? 1 : 0.8,
-                }}
-              >
-                BUKA
-              </button>
-              <button
-                onClick={() => updateStatusToko("TUTUP")}
-                disabled={updating || statusToko === "TUTUP"}
-                style={{
-                  padding: "8px 20px",
-                  borderRadius: 99,
-                  border: `1px solid ${statusToko === "TUTUP" ? C.red : C.gray300}`,
-                  fontWeight: 700,
-                  fontSize: 13,
-                  cursor: statusToko === "TUTUP" ? "default" : "pointer",
-                  background: statusToko === "TUTUP" ? C.red : C.white,
-                  color: statusToko === "TUTUP" ? C.white : C.gray700,
-                  boxShadow: statusToko === "TUTUP" ? `0 6px 20px ${C.red}45` : "none",
-                  transition: "all .2s ease",
-                  opacity: statusToko === "TUTUP" ? 1 : 0.8,
-                }}
-              >
-                TUTUP
-              </button>
-            </div>
-          </div>
+        {/* TABS */}
+        <div style={{ display: "flex", gap: 10, marginBottom: 24, borderBottom: `1px solid ${C.gray200}`, paddingBottom: 12 }}>
+          <button
+            onClick={() => setActiveTab("PESANAN")}
+            style={{
+              padding: "10px 20px",
+              background: activeTab === "PESANAN" ? C.red : "transparent",
+              color: activeTab === "PESANAN" ? C.white : C.gray600,
+              border: "none",
+              borderRadius: 99,
+              fontWeight: 700,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              transition: "all 0.2s"
+            }}
+          >
+            <IcOrders /> Pesanan Masuk
+          </button>
+          <button
+            onClick={() => setActiveTab("QR")}
+            style={{
+              padding: "10px 20px",
+              background: activeTab === "QR" ? C.red : "transparent",
+              color: activeTab === "QR" ? C.white : C.gray600,
+              border: "none",
+              borderRadius: 99,
+              fontWeight: 700,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              transition: "all 0.2s"
+            }}
+          >
+            <IcQr /> QR Meja
+          </button>
         </div>
 
-        {loading ? <Spinner /> : !stats ? (
-          <div style={{ padding: "40px 0", textAlign: "center", color: C.gray400, display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
-            <IcAlert />
-            <div style={{ fontWeight: 600, fontSize: 14, color: C.gray600 }}>Gagal memuat data</div>
-            <div style={{ fontSize: 12 }}>Data tidak ditemukan atau terjadi kesalahan</div>
-          </div>
-        ) : <>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", gap: 14, marginBottom: 28 }}>
-            {statCards.map(s => (
-              <div
-                key={s.label}
-                className={s.liftClass}
-                style={{ background: C.white, borderRadius: 12, padding: "16px 18px", border: `1px solid ${C.gray100}`, boxShadow: "0 1px 4px rgba(16,24,40,.05)", display: "flex", alignItems: "flex-start", gap: 14 }}
-              >
-                <div style={{ width: 40, height: 40, borderRadius: 9, background: s.lightBg, display: "flex", alignItems: "center", justifyContent: "center", color: s.color, flexShrink: 0 }}>{s.icon}</div>
+        {activeTab === "PESANAN" && (
+          <>
+            {/* CARD STATUS TOKO - Glassmorphism Control Panel */}
+            <div className="responsive-card" style={{
+              background: "rgba(255, 255, 255, 0.7)",
+              backdropFilter: "blur(10px)",
+              WebkitBackdropFilter: "blur(10px)",
+              borderRadius: 16,
+              marginBottom: 24,
+              border: "1px solid rgba(226, 232, 240, 0.8)",
+              boxShadow: "0 8px 32px rgba(15, 23, 42, 0.03)",
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 }}>
                 <div>
-                  <div style={{ fontSize: 10, color: C.gray400, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 3 }}>{s.label}</div>
-                  <div style={{ fontWeight: 800, fontSize: 19, color: C.gray900 }}>{s.val}</div>
+                  <div style={{ fontSize: 13, color: C.gray500, marginBottom: 4 }}>Status Toko</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+                    <div style={{ width: 10, height: 10, borderRadius: "50%", background: statusToko === "BUKA" ? C.success : C.red, boxShadow: statusToko === "BUKA" ? `0 0 0 3px ${C.successLight}` : `0 0 0 3px ${C.redLight}` }} />
+                    <span style={{ fontSize: 20, fontWeight: 800, color: C.gray900, fontFamily: "'Sora',sans-serif" }}>
+                      {statusToko === "BUKA" ? "TOKO BUKA" : "TOKO TUTUP"}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 12, color: C.gray500, marginTop: 6 }}>
+                    {statusToko === "BUKA"
+                      ? "Menu Anda terlihat oleh pelanggan"
+                      : "Menu Anda tidak terlihat oleh pelanggan"}
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 12 }}>
+                  <button
+                    onClick={() => updateStatusToko("BUKA")}
+                    disabled={updating || statusToko === "BUKA"}
+                    style={{
+                      padding: "8px 20px",
+                      borderRadius: 99,
+                      border: `1px solid ${statusToko === "BUKA" ? C.success : C.gray300}`,
+                      fontWeight: 700,
+                      fontSize: 13,
+                      cursor: statusToko === "BUKA" ? "default" : "pointer",
+                      background: statusToko === "BUKA" ? C.success : C.white,
+                      color: statusToko === "BUKA" ? C.white : C.gray700,
+                      boxShadow: statusToko === "BUKA" ? `0 6px 20px ${C.success}45` : "none",
+                      transition: "all .2s ease",
+                      opacity: statusToko === "BUKA" ? 1 : 0.8,
+                    }}
+                  >
+                    BUKA
+                  </button>
+                  <button
+                    onClick={() => updateStatusToko("TUTUP")}
+                    disabled={updating || statusToko === "TUTUP"}
+                    style={{
+                      padding: "8px 20px",
+                      borderRadius: 99,
+                      border: `1px solid ${statusToko === "TUTUP" ? C.red : C.gray300}`,
+                      fontWeight: 700,
+                      fontSize: 13,
+                      cursor: statusToko === "TUTUP" ? "default" : "pointer",
+                      background: statusToko === "TUTUP" ? C.red : C.white,
+                      color: statusToko === "TUTUP" ? C.white : C.gray700,
+                      boxShadow: statusToko === "TUTUP" ? `0 6px 20px ${C.red}45` : "none",
+                      transition: "all .2s ease",
+                      opacity: statusToko === "TUTUP" ? 1 : 0.8,
+                    }}
+                  >
+                    TUTUP
+                  </button>
                 </div>
               </div>
-            ))}
-          </div>
-
-          <h3 style={{ fontSize: 15, fontWeight: 700, color: C.gray900, marginBottom: 14 }}>Pesanan Masuk</h3>
-          {stats.pesanans && stats.pesanans.length === 0 ? (
-            <div style={{ padding: "40px 0", textAlign: "center", color: C.gray400, display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
-              <IcOrders />
-              <div style={{ fontWeight: 600, fontSize: 14, color: C.gray600 }}>Belum ada pesanan</div>
-              <div style={{ fontSize: 12 }}>Pesanan akan muncul di sini</div>
             </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {stats.pesanans.map(p => {
-                const sc = STATUS_CFG[p.status] || { color: C.gray400, bg: C.gray100 };
-                return (
-                  <div key={p.id} style={{ background: C.white, borderRadius: 16, padding: "18px 20px", border: `1px solid ${C.gray100}`, boxShadow: "0 2px 8px rgba(15,23,42,.05)", transition: "transform 0.2s", cursor: "pointer" }} onMouseEnter={e => e.currentTarget.style.transform = "translateY(-2px)"} onMouseLeave={e => e.currentTarget.style.transform = "none"}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
-                      <div>
-                        <span style={{ fontWeight: 800, color: C.red, fontSize: 16 }}>#{p.id}</span>
-                        <div style={{ fontSize: 12, color: C.gray400, marginTop: 2 }}>{p.pelanggan?.nama}</div>
-                      </div>
-                      <span style={{ padding: "4px 12px", borderRadius: 99, fontSize: 11, fontWeight: 700, color: sc.color, background: sc.bg }}>{p.status}</span>
-                    </div>
 
-                    <div style={{ borderTop: `1px solid ${C.gray100}`, paddingTop: 10, marginBottom: 12 }}>
-                      {p.details?.map(d => (
-                        <div key={d.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: C.gray600, padding: "3px 0" }}>
-                          <span>{d.menu?.nama_menu} ×{d.jumlah}</span>
-                          <span style={{ fontWeight: 600 }}>Rp{Number(d.subtotal).toLocaleString("id-ID")}</span>
+            {loading ? <Spinner /> : !stats ? (
+              <div style={{ padding: "40px 0", textAlign: "center", color: C.gray400, display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+                <IcAlert />
+                <div style={{ fontWeight: 600, fontSize: 14, color: C.gray600 }}>Gagal memuat data</div>
+                <div style={{ fontSize: 12 }}>Data tidak ditemukan atau terjadi kesalahan</div>
+              </div>
+            ) : <>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", gap: 14, marginBottom: 28 }}>
+                {statCards.map(s => (
+                  <div
+                    key={s.label}
+                    className={s.liftClass}
+                    style={{ background: C.white, borderRadius: 12, padding: "16px 18px", border: `1px solid ${C.gray100}`, boxShadow: "0 1px 4px rgba(16,24,40,.05)", display: "flex", alignItems: "flex-start", gap: 14 }}
+                  >
+                    <div style={{ width: 40, height: 40, borderRadius: 9, background: s.lightBg, display: "flex", alignItems: "center", justifyContent: "center", color: s.color, flexShrink: 0 }}>{s.icon}</div>
+                    <div>
+                      <div style={{ fontSize: 10, color: C.gray400, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 3 }}>{s.label}</div>
+                      <div style={{ fontWeight: 800, fontSize: 19, color: C.gray900 }}>{s.val}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* GRAPH */}
+              {stats.grafik_pendapatan && stats.grafik_pendapatan.length > 0 && (
+                <div className="responsive-card" style={{ background: C.white, borderRadius: 16, marginBottom: 28, border: `1px solid ${C.gray100}`, boxShadow: "0 2px 8px rgba(15,23,42,.05)" }}>
+                  <h3 style={{ fontSize: 15, fontWeight: 700, color: C.gray900, marginBottom: 20 }}>Grafik Pendapatan (7 Hari Terakhir)</h3>
+                  <div style={{ width: "100%", height: 300 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={stats.grafik_pendapatan} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={C.gray100} />
+                        <XAxis dataKey="tanggal" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: C.gray400 }} dy={10} />
+                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: C.gray400 }} tickFormatter={val => `Rp${(val / 1000)}k`} />
+                        <Tooltip
+                          contentStyle={{ borderRadius: 8, border: "none", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}
+                          formatter={(value) => [`Rp${Number(value).toLocaleString("id-ID")}`, "Pendapatan"]}
+                          labelStyle={{ color: C.gray500, marginBottom: 4 }}
+                        />
+                        <Line type="monotone" dataKey="total" stroke={C.red} strokeWidth={4} dot={{ r: 5, fill: C.red, strokeWidth: 2, stroke: C.white }} activeDot={{ r: 7 }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
+
+              <h3 style={{ fontSize: 15, fontWeight: 700, color: C.gray900, marginBottom: 14 }}>Pesanan Masuk</h3>
+              {stats.pesanans && stats.pesanans.length === 0 ? (
+                <div style={{ padding: "40px 0", textAlign: "center", color: C.gray400, display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+                  <IcOrders />
+                  <div style={{ fontWeight: 600, fontSize: 14, color: C.gray600 }}>Belum ada pesanan</div>
+                  <div style={{ fontSize: 12 }}>Pesanan akan muncul di sini</div>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {stats.pesanans.map(p => {
+                    const sc = STATUS_CFG[p.status] || { color: C.gray400, bg: C.gray100 };
+                    return (
+                      <div key={p.id} style={{ background: C.white, borderRadius: 16, padding: "18px 20px", border: `1px solid ${C.gray100}`, boxShadow: "0 2px 8px rgba(15,23,42,.05)", transition: "transform 0.2s", cursor: "pointer" }} onMouseEnter={e => e.currentTarget.style.transform = "translateY(-2px)"} onMouseLeave={e => e.currentTarget.style.transform = "none"}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                          <div>
+                            <span style={{ fontWeight: 800, color: C.red, fontSize: 16 }}>#{p.id}</span>
+                            <div style={{ fontSize: 12, color: C.gray400, marginTop: 2 }}>{p.pelanggan?.nama} {p.nomor_meja ? <strong style={{ color: C.blue }}>(Meja {p.nomor_meja})</strong> : ''}</div>
+                          </div>
+                          <span style={{ padding: "4px 12px", borderRadius: 99, fontSize: 11, fontWeight: 700, color: sc.color, background: sc.bg }}>{p.status}</span>
                         </div>
-                      ))}
-                    </div>
 
-                    {p.transaksi && (
-                      <div style={{ background: C.gray50, borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 6, fontSize: 13 }}>
-                        <span style={{ color: C.gray600 }}>Total: <strong style={{ color: C.red }}>Rp{Number(p.transaksi.total_bayar).toLocaleString("id-ID")}</strong></span>
-                        <span style={{ color: C.gray600 }}>{p.transaksi.metode_bayar} · <strong style={{ color: p.transaksi.status_bayar === "LUNAS" ? C.success : C.warn }}>{p.transaksi.status_bayar}</strong></span>
+                        <div style={{ borderTop: `1px solid ${C.gray100}`, paddingTop: 10, marginBottom: 12 }}>
+                          {p.details?.map(d => (
+                            <div key={d.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: C.gray600, padding: "3px 0" }}>
+                              <span>{d.menu?.nama_menu} ×{d.jumlah}</span>
+                              <span style={{ fontWeight: 600 }}>Rp{Number(d.subtotal).toLocaleString("id-ID")}</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        {p.catatan && (
+                          <div style={{ marginBottom: 12, padding: "8px 12px", background: "#FEF9C3", borderRadius: 8, fontSize: 12, color: "#854D0E" }}>
+                            <strong>Catatan:</strong> {p.catatan}
+                          </div>
+                        )}
+
+                        {p.transaksi && (
+                          <div style={{ background: C.gray50, borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 6, fontSize: 13 }}>
+                            <span style={{ color: C.gray600 }}>Total: <strong style={{ color: C.red }}>Rp{Number(p.transaksi.total_bayar).toLocaleString("id-ID")}</strong></span>
+                            <span style={{ color: C.gray600 }}>{p.transaksi.metode_bayar} · <strong style={{ color: p.transaksi.status_bayar === "LUNAS" ? C.success : C.warn }}>{p.transaksi.status_bayar}</strong></span>
+                          </div>
+                        )}
+
+                        <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          {p.status === "PENDING" && <>
+                            <BtnBlue small onClick={(e) => { e.stopPropagation(); updateStatus(p.id, "DIPROSES"); }}>Proses</BtnBlue>
+                            <BtnRed small onClick={(e) => { e.stopPropagation(); updateStatus(p.id, "SELESAI"); }}>Selesai</BtnRed>
+                            <BtnGhost small danger onClick={(e) => { e.stopPropagation(); updateStatus(p.id, "BATAL"); }} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><IcCancel /> Batal</BtnGhost>
+                          </>}
+                          {p.status === "DIPROSES" && <BtnRed small onClick={(e) => { e.stopPropagation(); updateStatus(p.id, "SELESAI"); }}>Selesai</BtnRed>}
+                        </div>
                       </div>
-                    )}
+                    );
+                  })}
+                </div>
+              )}
+            </>}
+          </>
+        )}
 
-                    <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      {p.status === "PENDING" && <>
-                        <BtnBlue small onClick={(e) => { e.stopPropagation(); updateStatus(p.id, "DIPROSES"); }}>Proses</BtnBlue>
-                        <BtnRed small onClick={(e) => { e.stopPropagation(); updateStatus(p.id, "SELESAI"); }}>Selesai</BtnRed>
-                        <BtnGhost small danger onClick={(e) => { e.stopPropagation(); updateStatus(p.id, "BATAL"); }} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><IcCancel /> Batal</BtnGhost>
-                      </>}
-                      {p.status === "DIPROSES" && <BtnRed small onClick={(e) => { e.stopPropagation(); updateStatus(p.id, "SELESAI"); }}>Selesai</BtnRed>}
+        {activeTab === "QR" && (
+          <div style={{ background: C.white, borderRadius: 16, padding: "30px", border: `1px solid ${C.gray100}`, boxShadow: "0 2px 8px rgba(15,23,42,.05)" }}>
+            <div style={{ textAlign: "center", marginBottom: 30 }}>
+              <h3 style={{ fontSize: 18, fontWeight: 800, color: C.gray900, marginBottom: 8 }}>QR Code Meja</h3>
+              <p style={{ fontSize: 13, color: C.gray500 }}>Cetak dan letakkan QR Code ini di masing-masing meja agar pelanggan dapat langsung memesan ke toko Anda tanpa perlu menginput nomor meja secara manual.</p>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 24 }}>
+              {Array.from({ length: 15 }, (_, i) => i + 1).map(meja => {
+                const url = `http://localhost:3000/?merchant_id=${user?.profile?.id}&table_id=${meja}`;
+                return (
+                  <div key={meja} style={{ background: C.gray50, padding: "20px 16px", borderRadius: 16, border: `1px solid ${C.gray200}`, display: "flex", flexDirection: "column", alignItems: "center", transition: "transform 0.2s" }} onMouseEnter={e => e.currentTarget.style.transform = "translateY(-4px)"} onMouseLeave={e => e.currentTarget.style.transform = "none"}>
+                    <div style={{ background: C.white, padding: 12, borderRadius: 12, marginBottom: 16, boxShadow: "0 2px 8px rgba(15,23,42,.05)" }}>
+                      <QRCode value={url} size={140} />
                     </div>
+                    <div style={{ fontWeight: 800, fontSize: 18, color: C.red, marginBottom: 8 }}>
+                      MEJA {meja}
+                    </div>
+                    <a href={url} target="_blank" rel="noreferrer" style={{ color: C.blue, fontSize: 12, textDecoration: "none", fontWeight: 600, background: C.blueLight, padding: "6px 16px", borderRadius: 99 }}>
+                      Buka Link
+                    </a>
                   </div>
                 );
               })}
             </div>
-          )}
-        </>}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -4,7 +4,11 @@ import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../contexts/ToastContext";
 import { apiFetch } from "../services/api";
 import Spinner from "../components/ui/Spinner";
-import { BtnRed, BtnGhost } from "../components/ui/Button";
+import { BtnRed, BtnGhost, BtnBlue } from "../components/ui/Button";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import Modal from "../components/ui/Modal";
+import Inp from "../components/ui/Input";
+import Sel from "../components/ui/Select";
 
 // ─── SVG Icons ────────────────────────────────────────────────────────────────
 const IcUsers    = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>;
@@ -17,6 +21,9 @@ const IcTrash    = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="n
 const IcCheck    = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>;
 const IcShield   = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>;
 const IcRefresh  = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>;
+const IcMenu     = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>;
+const IcEdit     = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>;
+
 
 // ─── Role Badge Colors ────────────────────────────────────────────────────────
 const ROLE_CLR = {
@@ -24,42 +31,6 @@ const ROLE_CLR = {
   MERCHANT:  { c: C.blue,    bg: C.blueLight },
   PELANGGAN: { c: C.success, bg: C.successLight },
 };
-
-// ─── Tab Button ───────────────────────────────────────────────────────────────
-function TabBtn({ active, onClick, icon, label, count }) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        display: "flex", alignItems: "center", gap: 8,
-        padding: "9px 18px",
-        borderRadius: 8,
-        border: "none",
-        cursor: "pointer",
-        fontWeight: active ? 700 : 500,
-        fontSize: 13.5,
-        color: active ? C.red : C.gray500,
-        background: active ? C.redLight : "transparent",
-        transition: "all .15s",
-        position: "relative",
-      }}
-    >
-      <span style={{ display: "flex", color: active ? C.red : C.gray400 }}>{icon}</span>
-      {label}
-      {count !== undefined && (
-        <span style={{
-          fontSize: 10, fontWeight: 700,
-          background: active ? C.red : C.gray200,
-          color: active ? C.white : C.gray600,
-          padding: "1px 6px", borderRadius: 99,
-          lineHeight: "16px",
-        }}>
-          {count}
-        </span>
-      )}
-    </button>
-  );
-}
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
 function StatCard({ label, val, icon, color, lightBg, liftClass }) {
@@ -109,8 +80,8 @@ export default function AdminPage() {
   const [stats, setStats]   = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isPolling = false) => {
+    if (!isPolling) setLoading(true);
     try {
       const [u, s] = await Promise.all([
         apiFetch("GET", "/admin/users", null, token),
@@ -119,13 +90,17 @@ export default function AdminPage() {
       setUsers(u.data);
       setStats(s.data);
     } catch (e) {
-      toast(e.message, "error");
+      if (!isPolling) toast(e.message, "error");
     } finally {
-      setLoading(false);
+      if (!isPolling) setLoading(false);
     }
   }, [token, toast]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { 
+    load(); 
+    const interval = setInterval(() => load(true), 10000);
+    return () => clearInterval(interval);
+  }, [load]);
 
   const delUser = async id => {
     if (!window.confirm("Hapus user ini?")) return;
@@ -145,8 +120,9 @@ export default function AdminPage() {
     } catch (e) { toast(e.message, "error"); }
   };
 
+
+
   // ── Derived counts ──────────────────────────────────────────────────────────
-  const pelangganCount  = users.filter(u => u.role === "PELANGGAN").length;
   const pembayaranCount = stats?.transaksis?.length ?? 0;
   const pendingCount    = stats?.transaksis?.filter(t => t.status_bayar === "PENDING").length ?? 0;
 
@@ -158,10 +134,11 @@ export default function AdminPage() {
   ] : [];
 
   return (
-    <div className="page-enter ambient-glow-wrapper" style={{ maxWidth: 1100, position: "relative" }}>
-      {/* Ambient background decoration blobs */}
-      <div className="ambient-glow-circle-1" />
-      <div className="ambient-glow-circle-2" />
+    <div className="page-enter" style={{ maxWidth: 1100, position: "relative" }}>
+      <div style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none", zIndex: 0 }}>
+        <div className="ambient-glow-circle-1" />
+        <div className="ambient-glow-circle-2" />
+      </div>
 
       <div style={{ position: "relative", zIndex: 1 }}>
 
@@ -180,7 +157,7 @@ export default function AdminPage() {
         justifyContent: "space-between",
         alignItems: "center",
         boxShadow: "0 4px 20px rgba(15, 23, 42, 0.02)",
-      }}>
+      }} className="responsive-header">
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ width: 40, height: 40, borderRadius: 10, background: C.redLight, display: "flex", alignItems: "center", justifyContent: "center", color: C.red }}>
             <IcShield />
@@ -197,33 +174,72 @@ export default function AdminPage() {
 
       {loading ? <Spinner /> : <>
 
+        {/* TABS */}
+        <div style={{ display: "flex", gap: 10, marginBottom: 24, borderBottom: `1px solid ${C.gray200}`, paddingBottom: 12 }}>
+            <button 
+                onClick={() => setTab("pembayaran")}
+                style={{ 
+                    padding: "10px 20px", 
+                    background: tab === "pembayaran" ? C.red : "transparent",
+                    color: tab === "pembayaran" ? C.white : C.gray600,
+                    border: "none",
+                    borderRadius: 99,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    transition: "all 0.2s"
+                }}
+            >
+                <IcCard /> Pembayaran
+            </button>
+            <button 
+                onClick={() => setTab("pelanggan")}
+                style={{ 
+                    padding: "10px 20px", 
+                    background: tab === "pelanggan" ? C.red : "transparent",
+                    color: tab === "pelanggan" ? C.white : C.gray600,
+                    border: "none",
+                    borderRadius: 99,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    transition: "all 0.2s"
+                }}
+            >
+                <IcUser /> User
+            </button>
+        </div>
+
         {/* ── Stat Cards ── */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(210px,1fr))", gap: 14, marginBottom: 28 }}>
           {statCards.map(s => <StatCard key={s.label} {...s} />)}
         </div>
 
-        {/* ── Tab Bar ── */}
-        <div style={{
-          display: "flex", gap: 4,
-          background: C.gray50, padding: 4, borderRadius: 10,
-          border: `1px solid ${C.gray100}`,
-          marginBottom: 20, width: "fit-content",
-        }}>
-          <TabBtn
-            active={tab === "pembayaran"}
-            onClick={() => setTab("pembayaran")}
-            icon={<IcCard />}
-            label="Pembayaran Masuk"
-            count={pembayaranCount}
-          />
-          <TabBtn
-            active={tab === "pelanggan"}
-            onClick={() => setTab("pelanggan")}
-            icon={<IcUser />}
-            label="Manajemen User"
-            count={users.length}
-          />
-        </div>
+        {/* GRAPH */}
+        {stats?.grafik_pendapatan && stats.grafik_pendapatan.length > 0 && (
+            <div className="responsive-card" style={{ background: C.white, borderRadius: 16, marginBottom: 28, border: `1px solid ${C.gray100}`, boxShadow: "0 2px 8px rgba(15,23,42,.05)" }}>
+                <h3 style={{ fontSize: 15, fontWeight: 700, color: C.gray900, marginBottom: 20 }}>Grafik Pendapatan Seluruh Merchant (7 Hari Terakhir)</h3>
+                <div style={{ width: "100%", height: 300 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={stats.grafik_pendapatan} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={C.gray100} />
+                            <XAxis dataKey="tanggal" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: C.gray400 }} dy={10} />
+                            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: C.gray400 }} tickFormatter={val => `Rp${(val/1000)}k`} />
+                            <Tooltip 
+                                contentStyle={{ borderRadius: 8, border: "none", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}
+                                formatter={(value) => [`Rp${Number(value).toLocaleString("id-ID")}`, "Total Pendapatan"]}
+                                labelStyle={{ color: C.gray500, marginBottom: 4 }}
+                            />
+                            <Line type="monotone" dataKey="total" stroke={C.success} strokeWidth={4} dot={{ r: 5, fill: C.success, strokeWidth: 2, stroke: C.white }} activeDot={{ r: 7 }} />
+                        </LineChart>
+                    </ResponsiveContainer>
+                </div>
+            </div>
+        )}
 
         {/* ════════════════════════════════
             TAB: PEMBAYARAN MASUK
@@ -305,7 +321,7 @@ export default function AdminPage() {
         )}
 
         {/* ════════════════════════════════
-            TAB: MANAJEMEN USER (PELANGGAN)
+            TAB: MANAJEMEN USER
         ════════════════════════════════ */}
         {tab === "pelanggan" && (
           <>
@@ -344,8 +360,13 @@ export default function AdminPage() {
                                 background: `linear-gradient(135deg, ${C.red}, ${C.redDark})`,
                                 display: "flex", alignItems: "center", justifyContent: "center",
                                 fontSize: 12, fontWeight: 800, color: C.white, flexShrink: 0,
+                                overflow: "hidden",
                               }}>
-                                {(u.username || "?")[0].toUpperCase()}
+                                {u.foto_profil ? (
+                                  <img src={u.foto_profil} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                ) : (
+                                  (u.username || "?")[0].toUpperCase()
+                                )}
                               </div>
                               <span style={{ fontWeight: 600, color: C.gray900, fontSize: 13 }}>{u.username}</span>
                             </div>

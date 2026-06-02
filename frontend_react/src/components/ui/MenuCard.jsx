@@ -63,7 +63,7 @@ export default function MenuCard({ m, role, onEdit, onDel, onCart }) {
 
       {/* Actions */}
       <div style={{ padding: "6px 12px 12px", display: "flex", gap: 6 }}>
-        {isMerchant && <>
+        {(isMerchant || role === "ADMIN") && <>
           <BtnGhost small style={{ flex: 1 }} onClick={() => onEdit(m)}>Edit</BtnGhost>
           <BtnGhost small danger onClick={() => onDel(m.id)}>Hapus</BtnGhost>
         </>}

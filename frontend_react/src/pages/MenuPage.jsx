@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { C } from "../styles/tokens";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../contexts/ToastContext";
@@ -89,6 +90,26 @@ export default function
   const [showNote, setShowNote] = useState(false);
   const [statusToko, setStatusToko] = useState('BUKA');
   const [tokoLoading, setTokoLoading] = useState(false);
+  
+  const [searchParams] = useSearchParams();
+  const [nomorMeja, setNomorMeja] = useState(null);
+
+  useEffect(() => {
+    const tableId = searchParams.get("table_id");
+    const merchantId = searchParams.get("merchant_id");
+    
+    if (tableId) {
+      setNomorMeja(tableId);
+      localStorage.setItem("nomor_meja", tableId);
+    } else {
+      const stored = localStorage.getItem("nomor_meja");
+      if (stored) setNomorMeja(stored);
+    }
+    
+    if (merchantId) {
+      setFilterToko(Number(merchantId));
+    }
+  }, [searchParams]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -178,10 +199,13 @@ export default function
         fd.append("_method", "PUT");
       }
 
-      // Perbaiki: Panggil API yang benar untuk menu
+      const endpoint = (role === "ADMIN" && editId) 
+        ? `/admin/menus/${editId}` 
+        : (editId ? `/menus/${editId}` : "/menus");
+
       const res = await apiFetch(
         "POST",
-        editId ? `/menus/${editId}` : "/menus",
+        endpoint,
         fd,
         token
       );
@@ -198,7 +222,8 @@ export default function
   const delMenu = async id => {
     if (!window.confirm("Hapus menu ini?")) return;
     try {
-      await apiFetch("DELETE", `/menus/${id}`, null, token);
+      const endpoint = role === "ADMIN" ? `/admin/menus/${id}` : `/menus/${id}`;
+      await apiFetch("DELETE", endpoint, null, token);
       toast("Menu dihapus");
       load();
     } catch (er) {
@@ -259,7 +284,8 @@ export default function
           merchant_id: mId,
           metode_bayar: metode,
           items: byMerchant[mId].map(c => ({ menu_id: c.id, jumlah: c.qty })),
-          catatan: orderNote,  // ✅ PASTIKAN INI ADA
+          catatan: orderNote,
+          nomor_meja: nomorMeja || localStorage.getItem("nomor_meja"),
         }, token);
         orders.push(res.data);
       }
@@ -273,28 +299,44 @@ export default function
         setPaymentOrders(orders);
         setPaymentModal(true);
       } else {
-        // Jika metode bayar online (QRIS / TRANSFER), buat invoice Xendit dan redirect langsung
+        // Jika metode bayar online (QRIS / TRANSFER), buat snap token Midtrans dan panggil snap
         try {
           const primaryOrder = orders[0];
           const email = user?.email || "customer@teleat.com";
 
-          toast("Membuat invoice Xendit... 💳");
+          toast("Menghubungi Midtrans... 💳");
 
           const payRes = await apiFetch("POST", "/payment/create", {
             order_id: primaryOrder.id,
             email: email
           }, token);
 
-          if (payRes.invoice_url) {
+          if (payRes.snap_token) {
             toast("Membuka gerbang pembayaran... 🚀");
-            // Redirect langsung ke Xendit Invoice Page agar user bisa memilih bank/ewallet/qris
-            window.location.href = payRes.invoice_url;
+            window.snap.pay(payRes.snap_token, {
+              onSuccess: function(result){
+                toast("Pembayaran berhasil!");
+                setCart([]);
+                load();
+                // Opsional: navigate ke pesanan
+              },
+              onPending: function(result){
+                toast("Menunggu pembayaran!");
+                setCart([]);
+              },
+              onError: function(result){
+                toast("Pembayaran gagal!");
+              },
+              onClose: function(){
+                toast("Popup ditutup sebelum pembayaran selesai.");
+              }
+            });
           } else {
-            throw new Error("Gagal memperoleh url pembayaran.");
+            throw new Error("Gagal memperoleh token pembayaran.");
           }
         } catch (payErr) {
           toast("Gagal memproses pembayaran otomatis: " + payErr.message, "error");
-          // Fallback: tampilkan modal instruksi manual jika API Xendit bermasalah
+          // Fallback: tampilkan modal instruksi manual jika API Midtrans bermasalah
           setPaymentOrders(orders);
           setPaymentModal(true);
         }
@@ -338,7 +380,7 @@ export default function
           justifyContent: "space-between",
           alignItems: "center",
           boxShadow: "0 4px 20px rgba(15, 23, 42, 0.02)",
-        }}>
+        }} className="responsive-header">
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ width: 38, height: 38, borderRadius: 9, background: C.redLight, display: "flex", alignItems: "center", justifyContent: "center", color: C.red }}>{Ic.menuIcon}</div>
             <div>
@@ -364,13 +406,15 @@ export default function
               </div>
             )}
             {isMerchant && (
-              <BtnRed small onClick={() => {
-                setEditId(null);
-                setForm({ nama_menu: "", harga: "", stok: "", kategori: "Lainnya" });
-                setMenuModal(true);
-              }}>
-                + Tambah Menu
-              </BtnRed>
+              <span className="hide-mobile">
+                <BtnRed small onClick={() => {
+                  setEditId(null);
+                  setForm({ nama_menu: "", harga: "", stok: "", kategori: "Lainnya" });
+                  setMenuModal(true);
+                }}>
+                  + Tambah Menu
+                </BtnRed>
+              </span>
             )}
           </div>
         </div>
@@ -379,7 +423,7 @@ export default function
           <div style={{ marginBottom: 24 }}>
             {/* Rekomendasi — infinite auto-scroll */}
             <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 12 }}>Rekomendasi Menu</h3>
-            <div style={{ overflow: "hidden", margin: "0 -20px", paddingBottom: 16 }}>
+            <div className="bleed-container">
               <style>{`
                 @keyframes marquee {
                   0%   { transform: translateX(0); }
@@ -438,7 +482,7 @@ export default function
 
             {/* Filter Toko */}
             <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 12, marginTop: 12 }}>Pilih Toko</h3>
-            <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 12, margin: "0 -20px", padding: "0 20px 12px" }}>
+            <div className="scroll-x-container">
               <div onClick={() => setFilterToko("Semua")} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "12px 8px", borderRadius: 16, background: filterToko === "Semua" ? C.blueLight : C.white, border: `1px solid ${filterToko === "Semua" ? C.blue : C.gray100}`, cursor: "pointer", minWidth: 76, transition: "all .2s" }}>
                 <div style={{ width: 44, height: 44, borderRadius: 12, background: filterToko === "Semua" ? C.blue : C.gray50, color: filterToko === "Semua" ? C.white : C.gray400, display: "flex", alignItems: "center", justifyContent: "center" }}>{Ic.globe}</div>
                 <span style={{ fontSize: 11, fontWeight: 700, color: filterToko === "Semua" ? C.blueDark : C.gray600, textAlign: "center", width: "100%", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>Semua</span>
@@ -453,7 +497,7 @@ export default function
 
             {/* Filter Kategori */}
             <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 12, marginTop: 12 }}>Kategori Makanan</h3>
-            <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 12, margin: "0 -20px", padding: "0 20px 12px" }}>
+            <div className="scroll-x-container" style={{ gap: 8 }}>
               {["Semua", "Makanan", "Minuman", "Cemilan", "Lainnya"].map(kat => (
                 <button key={kat} onClick={() => setFilterKategori(kat)} style={{ padding: "6px 16px", borderRadius: 99, background: filterKategori === kat ? C.red : C.gray100, color: filterKategori === kat ? C.white : C.gray600, border: "none", fontWeight: 700, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap", transition: "all .2s" }}>{kat}</button>
               ))}
@@ -480,33 +524,44 @@ export default function
         <button onClick={() => {
           setOrderModal(true);
           setOrderNote("");  // Reset note setiap buka modal
-        }} style={{
-          position: "fixed",
-          bottom: 16,
-          right: 20,
-          background: `linear-gradient(135deg, ${C.red}, ${C.redDark})`,
-          color: C.white,
-          border: "none",
-          borderRadius: 99,
-          padding: "12px 20px",
-          fontWeight: 700,
-          fontSize: 13,
-          cursor: "pointer",
-          zIndex: 190,
-          boxShadow: `0 8px 24px ${C.red}66`,
-          animation: "pulseRed 2s infinite",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 16,
-          width: "auto",
-          minWidth: 160
-        }}>
+        }} className="cart-fab">
           <span style={{ display: "flex", order: 1, color: C.white }}>{Ic.cart}</span>
           <div style={{ textAlign: "right", order: 2 }}>
             <div style={{ fontSize: 11, opacity: 0.9 }}>{cartCount} item</div>
             <div style={{ fontWeight: 800 }}>Rp{totalCart.toLocaleString("id-ID")}</div>
           </div>
+        </button>
+      )}
+
+      {/* Merchant Add Menu FAB */}
+      {isMerchant && (
+        <button 
+          onClick={() => {
+            setEditId(null);
+            setForm({ nama_menu: "", harga: "", stok: "", kategori: "Lainnya" });
+            setMenuModal(true);
+          }} 
+          className="hide-desktop"
+          style={{
+            position: "fixed",
+            bottom: "calc(76px + env(safe-area-inset-bottom))",
+            right: 16,
+            background: `linear-gradient(135deg, ${C.red}, ${C.redDark})`,
+            color: C.white,
+            border: "none",
+            borderRadius: 99,
+            padding: "12px 20px",
+            fontWeight: 700,
+            fontSize: 13,
+            cursor: "pointer",
+            zIndex: 1000,
+            boxShadow: `0 8px 24px ${C.red}66`,
+            display: "flex",
+            alignItems: "center",
+            gap: 6
+          }}
+        >
+          <span style={{ fontSize: 16, fontWeight: 800 }}>+</span> Tambah Menu
         </button>
       )}
 

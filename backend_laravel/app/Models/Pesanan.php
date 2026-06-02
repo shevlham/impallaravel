@@ -14,6 +14,7 @@ class Pesanan extends Model
         'totalHarga',
         'status',
         'catatan',
+        'nomor_meja',
     ];
 
     public function pelanggan()

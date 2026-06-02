@@ -30,21 +30,46 @@ export default function OrderPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("SEMUA");
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try { 
         const r = await apiFetch("GET", "/pesanans", null, token);
-        console.log(r.data);
-        console.log(r.data[0]?.catatan); 
-        setList(r.data); 
+        
+        if (!isMerchant) {
+            setList(prevList => {
+                if (prevList.length > 0) {
+                    r.data.forEach(newP => {
+                        const oldP = prevList.find(op => op.id === newP.id);
+                        if (oldP && oldP.status !== newP.status) {
+                            if (newP.status === "DIPROSES") {
+                                toast(`Pesanan #${newP.id} sedang DIPROSES oleh Merchant! 🍳`, "success");
+                                try { new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg").play(); } catch(e){}
+                            } else if (newP.status === "SELESAI") {
+                                toast(`Pesanan #${newP.id} sudah SELESAI! Silakan ambil. 🎉`, "success");
+                                try { new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg").play(); } catch(e){}
+                            }
+                        }
+                    });
+                }
+                return r.data;
+            });
+        } else {
+            setList(r.data);
+        }
     } catch (e) { 
-        toast(e.message, "error"); 
+        if (!isSilent) toast(e.message, "error"); 
     } finally { 
-        setLoading(false); 
+        if (!isSilent) setLoading(false); 
     }
-  }, [token, toast]);
+  }, [token, toast, isMerchant]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { 
+      load(); 
+      const interval = setInterval(() => {
+          load(true);
+      }, 10000);
+      return () => clearInterval(interval);
+  }, [load]);
 
   const updateStatus = async (id, status) => {
     try { 
@@ -81,7 +106,7 @@ export default function OrderPage() {
         justifyContent: "space-between",
         alignItems: "center",
         boxShadow: "0 4px 20px rgba(15, 23, 42, 0.02)",
-      }}>
+      }} className="responsive-header">
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ width: 38, height: 38, borderRadius: 9, background: C.redLight, display: "flex", alignItems: "center", justifyContent: "center", color: C.red }}><IcOrders /></div>
           <div>

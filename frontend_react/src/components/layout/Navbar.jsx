@@ -34,6 +34,7 @@ export default function Navbar({ onCollapse }) {
 
   const [collapsed, setCollapsed] = useState(false);
   const [dropdown, setDropdown] = useState(false);
+  const [mobileProfileOpen, setMobileProfileOpen] = useState(false);
   const dropRef = useRef(null);
 
   const sidebarW = collapsed ? W_COLLAPSED : W_FULL;
@@ -244,9 +245,9 @@ export default function Navbar({ onCollapse }) {
           MOBILE BOTTOM TAB
       ═══════════════════════════════════════════ */}
       <nav className="hide-desktop" style={{
-        position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 200,
+        position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 9999,
         background: C.white, borderTop: `1px solid ${C.gray100}`,
-        display: "flex", paddingBottom: "env(safe-area-inset-bottom,0)",
+        display: "flex", paddingBottom: "max(12px, env(safe-area-inset-bottom))",
         boxShadow: "0 -2px 12px rgba(16,24,40,.06)",
       }}>
         {links.map(l => (
@@ -266,7 +267,137 @@ export default function Navbar({ onCollapse }) {
             )}
           </NavLink>
         ))}
+        {/* Mobile Profil Button */}
+        <button 
+          onClick={() => setMobileProfileOpen(true)}
+          style={{
+            flex: 1, padding: "10px 0 8px", display: "flex", flexDirection: "column",
+            alignItems: "center", gap: 3, background: "transparent", border: "none",
+            color: mobileProfileOpen ? C.red : C.gray400, transition: "color .15s",
+            cursor: "pointer",
+          }}
+        >
+          <div style={{
+            width: 20, height: 20, borderRadius: "50%",
+            background: `linear-gradient(135deg, ${C.red}, ${C.redDark})`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 9, fontWeight: 800, color: C.white, overflow: "hidden",
+            marginBottom: 2,
+          }}>
+            {user?.foto_profil
+              ? <img src={user.foto_profil} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              : initial}
+          </div>
+          <span style={{ fontSize: 10, fontWeight: 700 }}>Profil</span>
+          {mobileProfileOpen && <div style={{ width: 18, height: 2, background: C.red, borderRadius: 99 }} />}
+        </button>
       </nav>
+
+      {/* Mobile Profile Bottom Sheet */}
+      {mobileProfileOpen && (
+        <>
+          {/* Overlay background */}
+          <div 
+            onClick={() => setMobileProfileOpen(false)}
+            style={{
+              position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+              background: "rgba(15, 23, 42, 0.4)",
+              backdropFilter: "blur(4px)",
+              WebkitBackdropFilter: "blur(4px)",
+              zIndex: 10000,
+            }}
+          />
+          {/* Bottom Sheet Card */}
+          <div 
+            style={{
+              position: "fixed", bottom: 0, left: 0, right: 0,
+              background: C.white,
+              borderTopLeftRadius: 24, borderTopRightRadius: 24,
+              padding: "20px 20px max(24px, env(safe-area-inset-bottom)) 20px",
+              boxShadow: "0 -10px 40px rgba(0,0,0,0.12)",
+              zIndex: 10001,
+              animation: "slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
+            }}
+          >
+            <style>{`
+              @keyframes slideUp {
+                from { transform: translateY(100%); }
+                to { transform: translateY(0); }
+              }
+            `}</style>
+
+            {/* Drag Handle */}
+            <div style={{ width: 36, height: 5, background: C.gray200, borderRadius: 99, margin: "0 auto 20px auto" }} />
+
+            {/* Profile Summary */}
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, marginBottom: 24 }}>
+              <div style={{
+                width: 64, height: 64, borderRadius: "50%",
+                background: `linear-gradient(135deg, ${C.red}, ${C.redDark})`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 24, fontWeight: 800, color: C.white, overflow: "hidden",
+                boxShadow: "0 4px 12px rgba(240,68,56,0.2)",
+              }}>
+                {user?.foto_profil
+                  ? <img src={user.foto_profil} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  : initial}
+              </div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: C.gray900, textAlign: "center" }}>
+                {displayName}
+              </div>
+              <div style={{ 
+                fontSize: 10, fontWeight: 700, color: C.red, textTransform: "uppercase", 
+                letterSpacing: "1px", background: C.redLight, padding: "4px 12px", borderRadius: 99 
+              }}>
+                {user?.role}
+              </div>
+            </div>
+
+            {/* Menu Actions */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <button
+                onClick={() => { setMobileProfileOpen(false); navigate("/setting"); }}
+                style={{
+                  display: "flex", alignItems: "center", gap: 12,
+                  padding: "14px 16px", width: "100%", border: "none",
+                  background: C.gray50, borderRadius: 12, cursor: "pointer",
+                  color: C.gray700, fontSize: 14, fontWeight: 600,
+                  transition: "background .15s",
+                }}
+              >
+                <span style={{ display: "flex", color: C.gray500 }}>{Ic.settings}</span>
+                Pengaturan Profil
+              </button>
+              
+              <button
+                onClick={handleLogout}
+                style={{
+                  display: "flex", alignItems: "center", gap: 12,
+                  padding: "14px 16px", width: "100%", border: "none",
+                  background: C.redLight, borderRadius: 12, cursor: "pointer",
+                  color: C.red, fontSize: 14, fontWeight: 600,
+                  transition: "background .15s",
+                }}
+              >
+                <span style={{ display: "flex", color: C.red }}>{Ic.logout}</span>
+                Keluar Sesi
+              </button>
+              
+              <button
+                onClick={() => setMobileProfileOpen(false)}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  padding: "14px 16px", width: "100%", border: `1px solid ${C.gray200}`,
+                  background: "transparent", borderRadius: 12, cursor: "pointer",
+                  color: C.gray500, fontSize: 14, fontWeight: 600, marginTop: 4,
+                }}
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </>
   );
 }

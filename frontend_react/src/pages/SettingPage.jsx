@@ -293,15 +293,7 @@ const updateEmail = async () => {
   return (
     <>
       <Navbar />
-      <div style={{ 
-        minHeight: "100vh",
-        background: `linear-gradient(135deg, ${C.gray50}, ${C.white})`,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "40px 20px",
-        paddingTop: "50px"
-      }}>
+      <div className="setting-container">
         <div style={{
           maxWidth: 550,
           width: "100%",

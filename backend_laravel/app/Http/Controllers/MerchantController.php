@@ -23,6 +23,18 @@ class MerchantController extends Controller
             ->latest()
             ->get();
 
+        $grafik_pendapatan = Transaksi::whereHas('pesanan', function($q) use ($merchant) {
+                                         $q->where('merchant_id', $merchant->id);
+                                     })
+                                     ->where('status_bayar', 'LUNAS')
+                                     ->selectRaw('DATE(created_at) as tanggal, SUM(total_bayar) as total')
+                                     ->groupBy('tanggal')
+                                     ->orderBy('tanggal', 'desc')
+                                     ->take(7)
+                                     ->get()
+                                     ->reverse()
+                                     ->values();
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -31,7 +43,8 @@ class MerchantController extends Controller
                                          $q->where('merchant_id', $merchant->id);
                                      })->where('status_bayar', 'LUNAS')->sum('total_bayar'),
                 'pesanan_pending' => Pesanan::where('merchant_id', $merchant->id)->where('status', 'PENDING')->count(),
-                'pesanans'        => $pesanans
+                'pesanans'        => $pesanans,
+                'grafik_pendapatan' => $grafik_pendapatan
             ]
         ]);
     }

@@ -37,7 +37,8 @@ class PesananController extends Controller
             'items'       => 'required|array|min:1',
             'items.*.menu_id' => 'required|exists:menus,id',
             'items.*.jumlah'  => 'required|integer|min:1',
-            'catatan'     => 'nullable|string|max:1000', 
+            'catatan'     => 'nullable|string|max:1000',
+            'nomor_meja'  => 'nullable|string|max:50',
         ]);
 
         $pelanggan = $request->user()->pelanggan;
@@ -53,6 +54,7 @@ class PesananController extends Controller
                 'merchant_id'  => $request->merchant_id,
                 'status'       => 'PENDING',
                 'catatan'      => $request->catatan ?? null,
+                'nomor_meja'   => $request->nomor_meja ?? null,
             ]);
 
             $totalBayar = 0;

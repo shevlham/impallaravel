@@ -44,6 +44,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/users',                  [AdminController::class, 'users']);
         Route::delete('/users/{id}',          [AdminController::class, 'deleteUser']);
         Route::put('/transaksi/{id}/lunas',   [AdminController::class, 'lunasTransaksi']);
+        
+        Route::get('/menus',                  [AdminController::class, 'menus']);
+        Route::match(['post', 'put'], '/menus/{id}', [AdminController::class, 'updateMenu']);
+        Route::delete('/menus/{id}',          [AdminController::class, 'deleteMenu']);
     });
 
     // Merchant only
