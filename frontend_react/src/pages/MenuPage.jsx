@@ -90,22 +90,11 @@ export default function
   const [showNote, setShowNote] = useState(false);
   const [statusToko, setStatusToko] = useState('BUKA');
   const [tokoLoading, setTokoLoading] = useState(false);
-  
   const [searchParams] = useSearchParams();
-  const [nomorMeja, setNomorMeja] = useState(null);
+  const [tipePemesanan, setTipePemesanan] = useState("DINE_IN");
 
   useEffect(() => {
-    const tableId = searchParams.get("table_id");
     const merchantId = searchParams.get("merchant_id");
-    
-    if (tableId) {
-      setNomorMeja(tableId);
-      localStorage.setItem("nomor_meja", tableId);
-    } else {
-      const stored = localStorage.getItem("nomor_meja");
-      if (stored) setNomorMeja(stored);
-    }
-    
     if (merchantId) {
       setFilterToko(Number(merchantId));
     }
@@ -285,7 +274,7 @@ export default function
           metode_bayar: metode,
           items: byMerchant[mId].map(c => ({ menu_id: c.id, jumlah: c.qty })),
           catatan: orderNote,
-          nomor_meja: nomorMeja || localStorage.getItem("nomor_meja"),
+          tipe_pemesanan: tipePemesanan,
         }, token);
         orders.push(res.data);
       }
@@ -677,8 +666,25 @@ export default function
           justifyContent: "space-between",
           alignItems: "center"
         }}>
-          <span style={{ fontSize: 13, color: C.gray600 }}>Tipe Pemesanan</span>
-          <span style={{ fontWeight: 700, fontSize: 14, color: C.gray900 }}>Makan di tempat</span>
+          <span style={{ fontSize: 13, color: C.gray600, fontWeight: 600 }}>Tipe Pemesanan</span>
+          <select 
+            value={tipePemesanan} 
+            onChange={e => setTipePemesanan(e.target.value)}
+            style={{
+              padding: "6px 12px",
+              borderRadius: 8,
+              border: `1px solid ${C.gray300}`,
+              background: C.white,
+              fontWeight: 700,
+              fontSize: 13,
+              color: C.gray900,
+              cursor: "pointer",
+              outline: "none",
+            }}
+          >
+            <option value="DINE_IN">Makan di tempat</option>
+            <option value="TAKE_AWAY">Take Away / Dibungkus</option>
+          </select>
         </div>
 
         {/* REKOMENDASI MENU TERKAIT */}

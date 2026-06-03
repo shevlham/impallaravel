@@ -224,7 +224,7 @@ export default function AdminPage() {
             <div className="responsive-card" style={{ background: C.white, borderRadius: 16, marginBottom: 28, border: `1px solid ${C.gray100}`, boxShadow: "0 2px 8px rgba(15,23,42,.05)" }}>
                 <h3 style={{ fontSize: 15, fontWeight: 700, color: C.gray900, marginBottom: 20 }}>Grafik Pendapatan Seluruh Merchant (7 Hari Terakhir)</h3>
                 <div style={{ width: "100%", height: 300 }}>
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                         <LineChart data={stats.grafik_pendapatan} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={C.gray100} />
                             <XAxis dataKey="tanggal" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: C.gray400 }} dy={10} />
@@ -394,6 +394,9 @@ export default function AdminPage() {
           </>
         )}
 
+        {/* ════════════════════════════════
+            TAB: QR MEJA
+        ════════════════════════════════ */}
       </>}
       </div>
     </div>

@@ -21,6 +21,7 @@ class AdminController extends Controller
                 'role'        => $u->role,
                 'nama'        => $u->admin?->nama ?? $u->merchant?->nama_merchant ?? $u->pelanggan?->nama,
                 'foto_profil' => $u->foto_profil,
+                'merchant_id' => $u->merchant?->id,
             ];
         });
         return response()->json(['success' => true, 'data' => $users]);

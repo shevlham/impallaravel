@@ -39,6 +39,7 @@ class PesananController extends Controller
             'items.*.jumlah'  => 'required|integer|min:1',
             'catatan'     => 'nullable|string|max:1000',
             'nomor_meja'  => 'nullable|string|max:50',
+            'tipe_pemesanan' => 'nullable|string|in:DINE_IN,TAKE_AWAY',
         ]);
 
         $pelanggan = $request->user()->pelanggan;
@@ -55,6 +56,7 @@ class PesananController extends Controller
                 'status'       => 'PENDING',
                 'catatan'      => $request->catatan ?? null,
                 'nomor_meja'   => $request->nomor_meja ?? null,
+                'tipe_pemesanan'=> $request->tipe_pemesanan ?? 'DINE_IN',
             ]);
 
             $totalBayar = 0;
@@ -105,21 +107,84 @@ class PesananController extends Controller
     {
         $request->validate(['status' => 'required|in:PENDING,DIPROSES,SELESAI,BATAL']);
 
-        $pesanan = Pesanan::findOrFail($id);
+        $pesanan = Pesanan::with(['details.menu', 'transaksi'])->findOrFail($id);
         $merchant = $request->user()->merchant;
 
         if (!$merchant || $pesanan->merchant_id !== $merchant->id) {
             return response()->json(['message' => 'Tidak diizinkan'], 403);
         }
 
-        $pesanan->update(['status' => $request->status]);
-
-        // Jika selesai, update status transaksi
-        if ($request->status === 'SELESAI') {
-            $pesanan->transaksi?->update(['status_bayar' => 'LUNAS']);
+        if ($pesanan->status === 'BATAL' || $pesanan->status === 'SELESAI') {
+             return response()->json(['message' => 'Status pesanan tidak dapat diubah lagi'], 400);
         }
 
-        return response()->json(['success' => true, 'data' => $pesanan]);
+        try {
+            DB::beginTransaction();
+
+            $pesanan->update(['status' => $request->status]);
+
+            // Jika selesai, update status transaksi
+            if ($request->status === 'SELESAI') {
+                $pesanan->transaksi?->update(['status_bayar' => 'LUNAS']);
+            }
+
+            // Jika batal, kembalikan stok dan set status transaksi jadi BATAL
+            if ($request->status === 'BATAL') {
+                foreach ($pesanan->details as $detail) {
+                    if ($detail->menu) {
+                        $detail->menu->increment('stok', $detail->jumlah);
+                    }
+                }
+                $pesanan->transaksi?->update(['status_bayar' => 'BATAL']);
+            }
+
+            DB::commit();
+
+            return response()->json(['success' => true, 'data' => $pesanan]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Gagal memperbarui status: ' . $e->getMessage()], 500);
+        }
+    }
+
+    // PUT /api/pesanans/{id}/batal — pelanggan batalkan pesanan
+    public function batalPesanan(Request $request, $id)
+    {
+        $pesanan = Pesanan::with(['details.menu', 'transaksi'])->findOrFail($id);
+        $pelanggan = $request->user()->pelanggan;
+
+        if (!$pelanggan || $pesanan->pelanggan_id !== $pelanggan->id) {
+            return response()->json(['message' => 'Tidak diizinkan'], 403);
+        }
+
+        if (in_array($pesanan->status, ['SELESAI', 'BATAL'])) {
+            return response()->json(['message' => 'Pesanan yang sudah selesai atau batal tidak dapat dibatalkan.'], 400);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $pesanan->update(['status' => 'BATAL']);
+
+            // Restore stok
+            foreach ($pesanan->details as $detail) {
+                if ($detail->menu) {
+                    $detail->menu->increment('stok', $detail->jumlah);
+                }
+            }
+
+            // Set status transaksi jadi BATAL
+            if ($pesanan->transaksi) {
+                $pesanan->transaksi->update(['status_bayar' => 'BATAL']);
+            }
+
+            DB::commit();
+
+            return response()->json(['success' => true, 'message' => 'Pesanan berhasil dibatalkan', 'data' => $pesanan]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Gagal membatalkan pesanan: ' . $e->getMessage()], 500);
+        }
     }
 
     // GET /api/pesanans/{id}

@@ -37,6 +37,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/pesanans',                    [PesananController::class, 'index']);
     Route::post('/pesanans',                   [PesananController::class, 'store']);
     Route::put('/pesanans/{id}/status',        [PesananController::class, 'updateStatus']);
+    Route::put('/pesanans/{id}/batal',         [PesananController::class, 'batalPesanan']);
 
     // Admin only
     Route::middleware('role:ADMIN')->prefix('admin')->group(function () {

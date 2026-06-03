@@ -5,27 +5,47 @@ import { useToast } from "../../contexts/ToastContext";
 import { apiFetch, loadGSI, GOOGLE_CID } from "../../services/api";
 import Spinner from "./Spinner";
 
+let globalCallback = null;
+
 export default function GoogleSignInBtn() {
   const { login } = useAuth();
   const toast = useToast();
   const ref = useRef(null);
   const [loaded, setLoaded] = useState(false);
 
+  const loginRef = useRef(login);
+  const toastRef = useRef(toast);
+  loginRef.current = login;
+  toastRef.current = toast;
+
+  useEffect(() => {
+    globalCallback = async ({ credential }) => {
+      try {
+        const res = await apiFetch("POST", "/auth/google/callback", { id_token: credential });
+        loginRef.current(res.user, res.token);
+        toastRef.current("Berhasil masuk dengan Google! 🎉");
+      } catch (err) {
+        toastRef.current(err.message, "error");
+      }
+    };
+  }, []);
+
   useEffect(() => {
     (async () => {
       await loadGSI();
       if (!window.google || !GOOGLE_CID) { setLoaded(true); return; }
-      window.google.accounts.id.initialize({
-        client_id: GOOGLE_CID,
-        callback: async ({ credential }) => {
-          try {
-            const res = await apiFetch("POST", "/auth/google/callback", { id_token: credential });
-            login(res.user, res.token);
-            toast("Berhasil masuk dengan Google! 🎉");
-          } catch (err) { toast(err.message, "error"); }
-        },
-        ux_mode: "popup",
-      });
+      
+      if (!window._gsiInitialized) {
+        window.google.accounts.id.initialize({
+          client_id: GOOGLE_CID,
+          callback: (res) => {
+            if (globalCallback) globalCallback(res);
+          },
+          ux_mode: "popup",
+        });
+        window._gsiInitialized = true;
+      }
+
       if (ref.current) {
         window.google.accounts.id.renderButton(ref.current, {
           theme: "outline", size: "large", width: 360, shape: "rectangular",
@@ -34,7 +54,7 @@ export default function GoogleSignInBtn() {
       }
       setLoaded(true);
     })();
-  }, [login, toast]);
+  }, []);
 
   if (!GOOGLE_CID) {
     return (

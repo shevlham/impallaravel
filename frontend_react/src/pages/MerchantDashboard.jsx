@@ -6,7 +6,6 @@ import { apiFetch } from "../services/api";
 import Spinner from "../components/ui/Spinner";
 import { BtnRed, BtnBlue, BtnGhost } from "../components/ui/Button";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import QRCode from "react-qr-code";
 
 // ─── SVG Icons ────────────────────────────────────────────────────────────────
 const IcOrders = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" /><rect x="9" y="3" width="6" height="4" rx="2" /><path d="M9 12h6M9 16h4" /></svg>;
@@ -16,7 +15,6 @@ const IcStore = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none
 const IcRefresh = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></svg>;
 const IcAlert = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>;
 const IcCancel = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>;
-const IcQr = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /></svg>;
 
 const STATUS_CFG = {
   PENDING: { color: C.warn, bg: "#FEF3C7" },
@@ -30,7 +28,6 @@ export default function MerchantDashboard() {
   const isMerchant = user?.role === "MERCHANT";
   const toast = useToast();
 
-  const [activeTab, setActiveTab] = useState("PESANAN"); // PESANAN or QR
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [statusToko, setStatusToko] = useState("BUKA");
@@ -50,9 +47,7 @@ export default function MerchantDashboard() {
         const currentPending = s.data.pesanans.filter(p => p.status === 'PENDING');
         if (isPolling && currentPending.length > lastPendingCount.current) {
           // Ada pesanan baru
-          const newOrder = currentPending[0]; // ambil yang terbaru (karena latest())
-          const mejaInfo = newOrder.nomor_meja ? ` dari Meja ${newOrder.nomor_meja}` : '';
-          toast(`Pesanan baru masuk${mejaInfo}!`, "success");
+          toast(`Pesanan baru masuk!`, "success");
           // Play sound
           const audio = new Audio('https://www.soundjay.com/buttons/sounds/button-3.mp3');
           audio.play().catch(e => console.log('Audio play error', e));
@@ -153,48 +148,6 @@ export default function MerchantDashboard() {
           <BtnGhost small onClick={() => load(false)} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><IcRefresh /> Refresh</BtnGhost>
         </div>
 
-        {/* TABS */}
-        <div style={{ display: "flex", gap: 10, marginBottom: 24, borderBottom: `1px solid ${C.gray200}`, paddingBottom: 12 }}>
-          <button
-            onClick={() => setActiveTab("PESANAN")}
-            style={{
-              padding: "10px 20px",
-              background: activeTab === "PESANAN" ? C.red : "transparent",
-              color: activeTab === "PESANAN" ? C.white : C.gray600,
-              border: "none",
-              borderRadius: 99,
-              fontWeight: 700,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              transition: "all 0.2s"
-            }}
-          >
-            <IcOrders /> Pesanan Masuk
-          </button>
-          <button
-            onClick={() => setActiveTab("QR")}
-            style={{
-              padding: "10px 20px",
-              background: activeTab === "QR" ? C.red : "transparent",
-              color: activeTab === "QR" ? C.white : C.gray600,
-              border: "none",
-              borderRadius: 99,
-              fontWeight: 700,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              transition: "all 0.2s"
-            }}
-          >
-            <IcQr /> QR Meja
-          </button>
-        </div>
-
-        {activeTab === "PESANAN" && (
-          <>
             {/* CARD STATUS TOKO - Glassmorphism Control Panel */}
             <div className="responsive-card" style={{
               background: "rgba(255, 255, 255, 0.7)",
@@ -291,7 +244,7 @@ export default function MerchantDashboard() {
                 <div className="responsive-card" style={{ background: C.white, borderRadius: 16, marginBottom: 28, border: `1px solid ${C.gray100}`, boxShadow: "0 2px 8px rgba(15,23,42,.05)" }}>
                   <h3 style={{ fontSize: 15, fontWeight: 700, color: C.gray900, marginBottom: 20 }}>Grafik Pendapatan (7 Hari Terakhir)</h3>
                   <div style={{ width: "100%", height: 300 }}>
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                       <LineChart data={stats.grafik_pendapatan} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={C.gray100} />
                         <XAxis dataKey="tanggal" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: C.gray400 }} dy={10} />
@@ -324,7 +277,7 @@ export default function MerchantDashboard() {
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
                           <div>
                             <span style={{ fontWeight: 800, color: C.red, fontSize: 16 }}>#{p.id}</span>
-                            <div style={{ fontSize: 12, color: C.gray400, marginTop: 2 }}>{p.pelanggan?.nama} {p.nomor_meja ? <strong style={{ color: C.blue }}>(Meja {p.nomor_meja})</strong> : ''}</div>
+                            <div style={{ fontSize: 12, color: C.gray400, marginTop: 2 }}>{p.pelanggan?.nama}</div>
                           </div>
                           <span style={{ padding: "4px 12px", borderRadius: 99, fontSize: 11, fontWeight: 700, color: sc.color, background: sc.bg }}>{p.status}</span>
                         </div>
@@ -365,36 +318,6 @@ export default function MerchantDashboard() {
                 </div>
               )}
             </>}
-          </>
-        )}
-
-        {activeTab === "QR" && (
-          <div style={{ background: C.white, borderRadius: 16, padding: "30px", border: `1px solid ${C.gray100}`, boxShadow: "0 2px 8px rgba(15,23,42,.05)" }}>
-            <div style={{ textAlign: "center", marginBottom: 30 }}>
-              <h3 style={{ fontSize: 18, fontWeight: 800, color: C.gray900, marginBottom: 8 }}>QR Code Meja</h3>
-              <p style={{ fontSize: 13, color: C.gray500 }}>Cetak dan letakkan QR Code ini di masing-masing meja agar pelanggan dapat langsung memesan ke toko Anda tanpa perlu menginput nomor meja secara manual.</p>
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 24 }}>
-              {Array.from({ length: 15 }, (_, i) => i + 1).map(meja => {
-                const url = `http://localhost:3000/?merchant_id=${user?.profile?.id}&table_id=${meja}`;
-                return (
-                  <div key={meja} style={{ background: C.gray50, padding: "20px 16px", borderRadius: 16, border: `1px solid ${C.gray200}`, display: "flex", flexDirection: "column", alignItems: "center", transition: "transform 0.2s" }} onMouseEnter={e => e.currentTarget.style.transform = "translateY(-4px)"} onMouseLeave={e => e.currentTarget.style.transform = "none"}>
-                    <div style={{ background: C.white, padding: 12, borderRadius: 12, marginBottom: 16, boxShadow: "0 2px 8px rgba(15,23,42,.05)" }}>
-                      <QRCode value={url} size={140} />
-                    </div>
-                    <div style={{ fontWeight: 800, fontSize: 18, color: C.red, marginBottom: 8 }}>
-                      MEJA {meja}
-                    </div>
-                    <a href={url} target="_blank" rel="noreferrer" style={{ color: C.blue, fontSize: 12, textDecoration: "none", fontWeight: 600, background: C.blueLight, padding: "6px 16px", borderRadius: 99 }}>
-                      Buka Link
-                    </a>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

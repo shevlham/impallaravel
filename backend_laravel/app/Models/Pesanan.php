@@ -15,6 +15,7 @@ class Pesanan extends Model
         'status',
         'catatan',
         'nomor_meja',
+        'tipe_pemesanan',
     ];
 
     public function pelanggan()

@@ -81,6 +81,17 @@ export default function OrderPage() {
     }
   };
 
+  const cancelOrder = async (id) => {
+    if (!window.confirm("Apakah Anda yakin ingin membatalkan pesanan ini?")) return;
+    try {
+        await apiFetch("PUT", `/pesanans/${id}/batal`, null, token);
+        toast("Pesanan berhasil dibatalkan! 💸");
+        load();
+    } catch (e) {
+        toast(e.message, "error");
+    }
+  };
+
   const shown = filter === "SEMUA" ? list : list.filter(p => p.status === filter);
   
   // tampil gambar menu 
@@ -144,7 +155,19 @@ export default function OrderPage() {
                       <span style={{ fontWeight: 800, color: C.red, fontSize: 16 }}>#{p.id}</span>
                       <div style={{ fontSize: 12, color: C.gray400, marginTop: 2 }}>{p.pelanggan?.nama} → {p.merchant?.nama_merchant}</div>
                     </div>
-                    <span style={{ padding: "4px 12px", borderRadius: 99, fontSize: 11, fontWeight: 700, color: sc.color, background: sc.bg }}>{p.status}</span>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                      <span style={{
+                        padding: "4px 10px",
+                        borderRadius: 99,
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: p.tipe_pemesanan === "TAKE_AWAY" ? "#D97706" : "#2563EB",
+                        background: p.tipe_pemesanan === "TAKE_AWAY" ? "#FEF3C7" : "#DBEAFE"
+                      }}>
+                        {p.tipe_pemesanan === "TAKE_AWAY" ? "Take Away / Dibungkus" : "Makan di tempat"}
+                      </span>
+                      <span style={{ padding: "4px 12px", borderRadius: 99, fontSize: 11, fontWeight: 700, color: sc.color, background: sc.bg }}>{p.status}</span>
+                    </div>
                   </div>
                   
                   <div style={{ borderTop: `1px solid ${C.gray100}`, paddingTop: 10, marginBottom: 12 }}>
@@ -227,7 +250,7 @@ export default function OrderPage() {
                   {p.transaksi && (
                     <div style={{ background: C.gray50, borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 6, fontSize: 13 }}>
                       <span style={{ color: C.gray600 }}>Total: <strong style={{ color: C.red }}>Rp{Number(p.transaksi.total_bayar).toLocaleString("id-ID")}</strong></span>
-                      <span style={{ color: C.gray600 }}>{p.transaksi.metode_bayar} · <strong style={{ color: p.transaksi.status_bayar === "LUNAS" ? C.success : C.warn }}>{p.transaksi.status_bayar}</strong></span>
+                      <span style={{ color: C.gray600 }}>{p.transaksi.metode_bayar} · <strong style={{ color: p.transaksi.status_bayar === "LUNAS" ? C.success : p.transaksi.status_bayar === "BATAL" ? C.red : C.warn }}>{p.transaksi.status_bayar}</strong></span>
                     </div>
                   )}
 
@@ -239,6 +262,14 @@ export default function OrderPage() {
                         <BtnGhost small danger onClick={() => updateStatus(p.id, "BATAL")} style={{ display:"inline-flex",alignItems:"center",gap:4 }}><IcCancel /> Batal</BtnGhost>
                       </>}
                       {p.status === "DIPROSES" && <BtnRed small onClick={() => updateStatus(p.id, "SELESAI")}>Selesai</BtnRed>}
+                    </div>
+                  )}
+
+                  {!isMerchant && (p.status === "PENDING" || p.status === "DIPROSES") && (
+                    <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <BtnGhost small danger onClick={() => cancelOrder(p.id)} style={{ display:"inline-flex",alignItems:"center",gap:4 }}>
+                        <IcCancel /> Batalkan Pesanan
+                      </BtnGhost>
                     </div>
                   )}
                 </div>
