@@ -1,4 +1,4 @@
-import { C } from "../../styles/tokens";
+import React from "react";
 import { inputStyle, labelStyle } from "./Input";
 
 export default function Select({ label, children, ...props }) {

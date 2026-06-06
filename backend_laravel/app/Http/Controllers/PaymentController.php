@@ -30,31 +30,78 @@ class PaymentController extends Controller
     {
         $request->validate([
             'email' => 'required|email',
-            'order_id' => 'required'
+            'order_id' => 'required',
+            'order_ids' => 'nullable|array',
         ]);
 
-        // Ambil order dari database
-        $order = Order::find($request->order_id);
+        $user = $request->user();
 
-        // Jika order tidak ditemukan di tabel `orders`, coba cari dari tabel `pesanans` dan buat dynamic order record!
-        if (!$order) {
-            $pesanan = Pesanan::with('transaksi')->find($request->order_id);
-            if ($pesanan) {
-                $user = $request->user();
-                $totalBayar = $pesanan->transaksi ? (int)$pesanan->transaksi->total_bayar : 0;
-                
-                // Buat record order secara dinamis
+        // Cek jika order_ids dikirim sebagai array (kasus multi-merchant)
+        if ($request->has('order_ids') && is_array($request->order_ids) && count($request->order_ids) > 0) {
+            $orderIds = $request->order_ids;
+            $pesanans = Pesanan::with('transaksi')->whereIn('id', $orderIds)->get();
+
+            if ($pesanans->isEmpty()) {
+                return response()->json([
+                    'message' => 'Pesanan-pesanan tidak ditemukan'
+                ], 404);
+            }
+
+            // Hitung total harga gabungan dari semua transaksi pesanan
+            $totalBayar = 0;
+            foreach ($pesanans as $pesanan) {
+                $totalBayar += $pesanan->transaksi ? (int)$pesanan->transaksi->total_bayar : 0;
+            }
+
+            // Gunakan ID pesanan pertama sebagai base ID untuk record Order
+            $baseOrderId = $pesanans->first()->id;
+
+            $order = Order::find($baseOrderId);
+            if (!$order) {
                 $order = Order::create([
-                    'id' => $pesanan->id, // Samakan ID agar memudahkan tracking
+                    'id' => $baseOrderId,
+                    'user_id' => $user ? $user->id : ($pesanans->first()->pelanggan->user_id ?? 1),
+                    'pesanan_ids' => implode(',', $orderIds),
+                    'total_price' => $totalBayar,
+                    'status' => 'PENDING',
+                    'payment_method' => 'MIDTRANS',
+                ]);
+            } else {
+                $order->update([
+                    'pesanan_ids' => implode(',', $orderIds),
+                    'total_price' => $totalBayar,
+                    'status' => 'PENDING',
+                    'payment_method' => 'MIDTRANS',
+                ]);
+            }
+        } else {
+            // Fallback: Kasus satu pesanan biasa (single-merchant)
+            $pesanan = Pesanan::with('transaksi')->find($request->order_id);
+            if (!$pesanan) {
+                return response()->json([
+                    'message' => 'Order / Pesanan tidak ditemukan'
+                ], 404);
+            }
+
+            $totalBayar = $pesanan->transaksi ? (int)$pesanan->transaksi->total_bayar : 0;
+
+            $order = Order::find($request->order_id);
+            if (!$order) {
+                $order = Order::create([
+                    'id' => $pesanan->id,
                     'user_id' => $user ? $user->id : ($pesanan->pelanggan->user_id ?? 1),
+                    'pesanan_ids' => (string) $pesanan->id,
                     'total_price' => $totalBayar,
                     'status' => 'PENDING',
                     'payment_method' => $pesanan->transaksi ? $pesanan->transaksi->metode_bayar : 'MIDTRANS',
                 ]);
             } else {
-                return response()->json([
-                    'message' => 'Order / Pesanan tidak ditemukan'
-                ], 404);
+                $order->update([
+                    'pesanan_ids' => (string) $pesanan->id,
+                    'total_price' => $totalBayar,
+                    'status' => 'PENDING',
+                    'payment_method' => $pesanan->transaksi ? $pesanan->transaksi->metode_bayar : 'MIDTRANS',
+                ]);
             }
         }
 
@@ -68,7 +115,7 @@ class PaymentController extends Controller
                 'gross_amount' => (int) $order->total_price,
             ),
             'customer_details' => array(
-                'first_name' => $request->user() ? $request->user()->username : 'Customer',
+                'first_name' => $user ? $user->username : 'Customer',
                 'email' => $request->email,
             ),
         );
@@ -134,11 +181,21 @@ class PaymentController extends Controller
             $this->markOrderAsPaid($order, $externalId);
         } else if ($status == 'cancel' || $status == 'deny' || $status == 'expire') {
             $order->update(['status' => 'EXPIRED']);
-            $pesanan = Pesanan::find($order->id);
-            if ($pesanan) {
-                $pesanan->update(['status' => 'BATAL']);
+            
+            $pesananIds = [];
+            if (!empty($order->pesanan_ids)) {
+                $pesananIds = explode(',', $order->pesanan_ids);
+            } else {
+                $pesananIds = [$order->id];
             }
-            Log::info('Midtrans Webhook: Order marked as EXPIRED/BATAL.');
+
+            foreach ($pesananIds as $pId) {
+                $pesanan = Pesanan::find(trim($pId));
+                if ($pesanan) {
+                    $pesanan->update(['status' => 'BATAL']);
+                }
+            }
+            Log::info('Midtrans Webhook: Orders marked as EXPIRED/BATAL.', ['pesanan_ids' => $pesananIds]);
         } else if ($status == 'pending') {
             $order->update(['status' => 'PENDING']);
         }
@@ -155,21 +212,32 @@ class PaymentController extends Controller
             'paid_at' => Carbon::now()
         ]);
 
-        // Sync status ke tabel `pesanans` dan `transaksis` yang bersangkutan
-        $pesanan = Pesanan::find($order->id);
-        if ($pesanan) {
-            $pesanan->update([
-                'status' => 'DIPROSES' // Ubah status pesanan ke DIPROSES agar Merchant bisa memproses makanan
-            ]);
-            if ($pesanan->transaksi) {
-                $pesanan->transaksi->update([
-                    'status_bayar' => 'LUNAS' // Tandai transaksi sebagai LUNAS
+        // Sync status ke semua tabel `pesanans` dan `transaksis` yang bersangkutan
+        $pesananIds = [];
+        if (!empty($order->pesanan_ids)) {
+            $pesananIds = explode(',', $order->pesanan_ids);
+        } else {
+            // Fallback jika pesanan_ids kosong (misal data legacy)
+            $pesananIds = [$order->id];
+        }
+
+        foreach ($pesananIds as $pId) {
+            $pesanan = Pesanan::find(trim($pId));
+            if ($pesanan) {
+                $pesanan->update([
+                    'status' => 'DIPROSES' // Ubah status pesanan ke DIPROSES agar Merchant bisa memproses makanan
                 ]);
+                if ($pesanan->transaksi) {
+                    $pesanan->transaksi->update([
+                        'status_bayar' => 'LUNAS' // Tandai transaksi sebagai LUNAS
+                    ]);
+                }
             }
         }
 
-        Log::info('Midtrans Webhook: Order successfully updated to PAID/LUNAS.', [
+        Log::info('Midtrans Webhook: Orders successfully updated to PAID/LUNAS.', [
             'order_id' => $order->id,
+            'pesanan_ids' => $pesananIds,
             'external_id' => $externalId
         ]);
     }

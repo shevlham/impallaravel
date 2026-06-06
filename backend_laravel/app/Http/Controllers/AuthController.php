@@ -14,11 +14,47 @@ use Laravel\Socialite\Facades\Socialite;
 
 class AuthController extends Controller
 {
+    /**
+     * Mendaftar user baru (ADMIN, PELANGGAN, MERCHANT).
+     *
+     * @OA\Post(
+     *     path="/api/register",
+     *     summary="Daftar user baru",
+     *     description="Mendaftarkan akun baru dengan role ADMIN, MERCHANT, atau PELANGGAN.",
+     *     tags={"Autentikasi"},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"nama", "username", "email", "password", "role"},
+     *             @OA\Property(property="nama", type="string", example="Budi Santoso"),
+     *             @OA\Property(property="username", type="string", example="budisantoso"),
+     *             @OA\Property(property="email", type="string", format="email", example="budi@gmail.com"),
+     *             @OA\Property(property="password", type="string", format="password", example="password123"),
+     *             @OA\Property(property="role", type="string", enum={"ADMIN", "PELANGGAN", "MERCHANT"}, example="PELANGGAN"),
+     *             @OA\Property(property="foto_profil", type="string", format="binary", nullable=true)
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=201,
+     *         description="Pendaftaran sukses",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="token", type="string", example="1|abcde..."),
+     *             @OA\Property(property="user", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(response=422, description="Validasi gagal")
+     * )
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function register(Request $request)
     {
         $request->validate([
             'nama'        => 'required|string|max:100',
             'username'    => 'required|string|unique:users,username|max:50',
+            'email'       => 'required|email|unique:users,email|max:255',
             'password'    => 'required|string|min:6',
             'role'        => 'required|in:ADMIN,PELANGGAN,MERCHANT',
             'foto_profil' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
@@ -35,6 +71,7 @@ class AuthController extends Controller
 
         $user = User::create([
             'username'    => $request->username,
+            'email'       => $request->email,
             'password'    => Hash::make($request->password),
             'role'        => $request->role,
             'foto_profil' => $fotoPath,
@@ -57,6 +94,37 @@ class AuthController extends Controller
         ], 201);
     }
 
+    /**
+     * Autentikasi user (Login).
+     *
+     * @OA\Post(
+     *     path="/api/login",
+     *     summary="Login user",
+     *     description="Masuk ke aplikasi menggunakan username dan password untuk mendapatkan token JWT.",
+     *     tags={"Autentikasi"},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"username", "password"},
+     *             @OA\Property(property="username", type="string", example="budisantoso"),
+     *             @OA\Property(property="password", type="string", format="password", example="password123")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Login berhasil",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="token", type="string", example="1|abcde..."),
+     *             @OA\Property(property="user", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Kredensial salah")
+     * )
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function login(Request $request)
     {
         $request->validate([
@@ -81,6 +149,35 @@ class AuthController extends Controller
         ]);
     }
     
+    /**
+     * Google OAuth callback login/register.
+     *
+     * @OA\Post(
+     *     path="/api/auth/google",
+     *     summary="Login via Google",
+     *     description="Masuk atau daftar otomatis menggunakan ID Token dari Google OAuth.",
+     *     tags={"Autentikasi"},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"id_token"},
+     *             @OA\Property(property="id_token", type="string", description="Google ID Token")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Login berhasil",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="user", type="object"),
+     *             @OA\Property(property="token", type="string", example="1|abcde...")
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Token tidak valid")
+     * )
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function googleCallback(Request $request)
     {
         $request->validate([
@@ -130,18 +227,68 @@ class AuthController extends Controller
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
+        $user->load(['admin', 'merchant', 'pelanggan']);
+
         return response()->json([
-            'user' => $user,
+            'user' => $this->userWithProfile($user),
             'token' => $token
         ]);
     }
 
+    /**
+     * Keluar dari sesi aplikasi (Logout).
+     *
+     * @OA\Post(
+     *     path="/api/logout",
+     *     summary="Logout user",
+     *     description="Menghapus access token saat ini.",
+     *     tags={"Autentikasi"},
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Logout berhasil",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Logout berhasil")
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Unauthenticated")
+     * )
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();
         return response()->json(['message' => 'Logout berhasil']);
     }
 
+    /**
+     * Ambil data profil user saat ini (Me).
+     *
+     * @OA\Get(
+     *     path="/api/me",
+     *     summary="Data user saat ini",
+     *     description="Mendapatkan informasi detail user beserta profilnya berdasarkan token Sanctum.",
+     *     tags={"Autentikasi"},
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Berhasil mengambil data",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="id", type="integer", example=1),
+     *             @OA\Property(property="username", type="string", example="budisantoso"),
+     *             @OA\Property(property="email", type="string", example="budi@gmail.com"),
+     *             @OA\Property(property="role", type="string", example="PELANGGAN"),
+     *             @OA\Property(property="profile", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Unauthenticated")
+     * )
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function me(Request $request)
     {
         $user = $request->user();
@@ -211,7 +358,7 @@ class AuthController extends Controller
     
     return response()->json([
         'success' => true,
-        'data' => ['user' => $user],
+        'user' => $this->userWithProfile($user),
         'message' => 'Profil berhasil diupdate'
     ]);
 }
@@ -256,7 +403,7 @@ class AuthController extends Controller
     
     return response()->json([
         'success' => true,
-        'data' => ['user' => $user],
+        'user' => $this->userWithProfile($user),
         'message' => 'Foto profil berhasil diupdate'
     ]);
 }

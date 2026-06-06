@@ -16,6 +16,49 @@ const IcRefresh = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="no
 const IcAlert = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>;
 const IcCancel = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>;
 
+const formatDateHeader = (dateStr) => {
+  if (!dateStr) return "";
+  try {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return dateStr;
+    const days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+    const months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+    return `${days[date.getDay()]}, ${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+  } catch (e) {
+    return dateStr;
+  }
+};
+
+const formatTime = (dateStr) => {
+  if (!dateStr) return "";
+  try {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return "";
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    return `${hours}:${minutes}`;
+  } catch (e) {
+    return "";
+  }
+};
+
+
+const IcCalendar = ({ size = 14 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+    <line x1="16" y1="2" x2="16" y2="6" />
+    <line x1="8" y1="2" x2="8" y2="6" />
+    <line x1="3" y1="10" x2="21" y2="10" />
+  </svg>
+);
+
+const IcClockSmall = ({ size = 14 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" />
+    <polyline points="12 6 12 12 16 14" />
+  </svg>
+);
+
 const STATUS_CFG = {
   PENDING: { color: C.warn, bg: "#FEF3C7" },
   DIPROSES: { color: C.blue, bg: C.blueLight },
@@ -268,55 +311,105 @@ export default function MerchantDashboard() {
                   <div style={{ fontWeight: 600, fontSize: 14, color: C.gray600 }}>Belum ada pesanan</div>
                   <div style={{ fontSize: 12 }}>Pesanan akan muncul di sini</div>
                 </div>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                  {stats.pesanans.map(p => {
-                    const sc = STATUS_CFG[p.status] || { color: C.gray400, bg: C.gray100 };
-                    return (
-                      <div key={p.id} style={{ background: C.white, borderRadius: 16, padding: "18px 20px", border: `1px solid ${C.gray100}`, boxShadow: "0 2px 8px rgba(15,23,42,.05)", transition: "transform 0.2s", cursor: "pointer" }} onMouseEnter={e => e.currentTarget.style.transform = "translateY(-2px)"} onMouseLeave={e => e.currentTarget.style.transform = "none"}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
-                          <div>
-                            <span style={{ fontWeight: 800, color: C.red, fontSize: 16 }}>#{p.id}</span>
-                            <div style={{ fontSize: 12, color: C.gray400, marginTop: 2 }}>{p.pelanggan?.nama}</div>
-                          </div>
-                          <span style={{ padding: "4px 12px", borderRadius: 99, fontSize: 11, fontWeight: 700, color: sc.color, background: sc.bg }}>{p.status}</span>
-                        </div>
+              ) : (() => {
+                let lastDate = "";
+                return (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    {stats.pesanans.map(p => {
+                      const sc = STATUS_CFG[p.status] || { color: C.gray400, bg: C.gray100 };
+                      const pDate = p.created_at ? p.created_at.split("T")[0] : "";
+                      const showDivider = pDate && pDate !== lastDate;
+                      if (showDivider) {
+                        lastDate = pDate;
+                      }
 
-                        <div style={{ borderTop: `1px solid ${C.gray100}`, paddingTop: 10, marginBottom: 12 }}>
-                          {p.details?.map(d => (
-                            <div key={d.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: C.gray600, padding: "3px 0" }}>
-                              <span>{d.menu?.nama_menu} ×{d.jumlah}</span>
-                              <span style={{ fontWeight: 600 }}>Rp{Number(d.subtotal).toLocaleString("id-ID")}</span>
+                      const formattedHeaderDate = pDate ? formatDateHeader(p.created_at) : "Tanggal Tidak Diketahui";
+                      const timeStr = p.created_at ? formatTime(p.created_at) : "";
+
+                      return (
+                        <div key={p.id}>
+                          {showDivider && (
+                            <div style={{ 
+                              display: "flex", 
+                              alignItems: "center", 
+                              gap: 12, 
+                              margin: "24px 0 12px 0",
+                              position: "relative"
+                            }}>
+                              <span style={{ 
+                                fontSize: 12, 
+                                fontWeight: 800, 
+                                color: C.gray600, 
+                                background: C.gray50, 
+                                padding: "4px 12px", 
+                                borderRadius: 6,
+                                border: `1px solid ${C.gray200}`,
+                                textTransform: "uppercase",
+                                letterSpacing: "0.5px",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 6
+                              }}>
+                                <IcCalendar size={13} />
+                                {formattedHeaderDate}
+                              </span>
+                              <div style={{ flex: 1, height: 1, background: C.gray200 }} />
                             </div>
-                          ))}
-                        </div>
+                          )}
+                          <div style={{ background: C.white, borderRadius: 16, padding: "18px 20px", border: `1px solid ${C.gray100}`, boxShadow: "0 2px 8px rgba(15,23,42,.05)", transition: "transform 0.2s", cursor: "pointer" }} onMouseEnter={e => e.currentTarget.style.transform = "translateY(-2px)"} onMouseLeave={e => e.currentTarget.style.transform = "none"}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                              <div>
+                                <span style={{ fontWeight: 800, color: C.red, fontSize: 16 }}>#{p.id}</span>
+                                <div style={{ fontSize: 12, color: C.gray400, marginTop: 2 }}>{p.pelanggan?.nama}</div>
+                              </div>
+                              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+                                <span style={{ padding: "4px 12px", borderRadius: 99, fontSize: 11, fontWeight: 700, color: sc.color, background: sc.bg }}>{p.status}</span>
+                                {timeStr && (
+                                  <span style={{ fontSize: 11, color: C.gray500, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 4 }}>
+                                    <IcClockSmall size={12} />
+                                    {timeStr}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
 
-                        {p.catatan && (
-                          <div style={{ marginBottom: 12, padding: "8px 12px", background: "#FEF9C3", borderRadius: 8, fontSize: 12, color: "#854D0E" }}>
-                            <strong>Catatan:</strong> {p.catatan}
+                            <div style={{ borderTop: `1px solid ${C.gray100}`, paddingTop: 10, marginBottom: 12 }}>
+                              {p.details?.map(d => (
+                                <div key={d.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: C.gray600, padding: "3px 0" }}>
+                                  <span>{d.menu?.nama_menu} ×{d.jumlah}</span>
+                                  <span style={{ fontWeight: 600 }}>Rp{Number(d.subtotal).toLocaleString("id-ID")}</span>
+                                </div>
+                              ))}
+                            </div>
+
+                            {p.catatan && (
+                              <div style={{ marginBottom: 12, padding: "8px 12px", background: "#FEF9C3", borderRadius: 8, fontSize: 12, color: "#854D0E" }}>
+                                <strong>Catatan:</strong> {p.catatan}
+                              </div>
+                            )}
+
+                            {p.transaksi && (
+                              <div style={{ background: C.gray50, borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 6, fontSize: 13 }}>
+                                <span style={{ color: C.gray600 }}>Total: <strong style={{ color: C.red }}>Rp{Number(p.transaksi.total_bayar).toLocaleString("id-ID")}</strong></span>
+                                <span style={{ color: C.gray600 }}>{p.transaksi.metode_bayar} · <strong style={{ color: p.transaksi.status_bayar === "LUNAS" ? C.success : C.warn }}>{p.transaksi.status_bayar}</strong></span>
+                              </div>
+                            )}
+
+                            <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                              {p.status === "PENDING" && <>
+                                <BtnBlue small onClick={(e) => { e.stopPropagation(); updateStatus(p.id, "DIPROSES"); }}>Proses</BtnBlue>
+                                <BtnRed small onClick={(e) => { e.stopPropagation(); updateStatus(p.id, "SELESAI"); }}>Selesai</BtnRed>
+                                <BtnGhost small danger onClick={(e) => { e.stopPropagation(); updateStatus(p.id, "BATAL"); }} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><IcCancel /> Batal</BtnGhost>
+                              </>}
+                              {p.status === "DIPROSES" && <BtnRed small onClick={(e) => { e.stopPropagation(); updateStatus(p.id, "SELESAI"); }}>Selesai</BtnRed>}
+                            </div>
                           </div>
-                        )}
-
-                        {p.transaksi && (
-                          <div style={{ background: C.gray50, borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 6, fontSize: 13 }}>
-                            <span style={{ color: C.gray600 }}>Total: <strong style={{ color: C.red }}>Rp{Number(p.transaksi.total_bayar).toLocaleString("id-ID")}</strong></span>
-                            <span style={{ color: C.gray600 }}>{p.transaksi.metode_bayar} · <strong style={{ color: p.transaksi.status_bayar === "LUNAS" ? C.success : C.warn }}>{p.transaksi.status_bayar}</strong></span>
-                          </div>
-                        )}
-
-                        <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                          {p.status === "PENDING" && <>
-                            <BtnBlue small onClick={(e) => { e.stopPropagation(); updateStatus(p.id, "DIPROSES"); }}>Proses</BtnBlue>
-                            <BtnRed small onClick={(e) => { e.stopPropagation(); updateStatus(p.id, "SELESAI"); }}>Selesai</BtnRed>
-                            <BtnGhost small danger onClick={(e) => { e.stopPropagation(); updateStatus(p.id, "BATAL"); }} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><IcCancel /> Batal</BtnGhost>
-                          </>}
-                          {p.status === "DIPROSES" && <BtnRed small onClick={(e) => { e.stopPropagation(); updateStatus(p.id, "SELESAI"); }}>Selesai</BtnRed>}
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </>}
       </div>
     </div>

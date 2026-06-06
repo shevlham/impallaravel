@@ -1,0 +1,679 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "TelEat API Documentation",
+        "description": "Dokumentasi API untuk aplikasi pemesanan makanan TelEat (Laravel & React)",
+        "contact": {
+            "email": "admin@teleat.com"
+        },
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "http://localhost:8000",
+            "description": "Local Development Server"
+        }
+    ],
+    "paths": {
+        "/api/register": {
+            "post": {
+                "tags": [
+                    "Autentikasi"
+                ],
+                "summary": "Daftar user baru",
+                "description": "Mendaftarkan akun baru dengan role ADMIN, MERCHANT, atau PELANGGAN.",
+                "operationId": "8a56853624e025573120a09a4c75d468",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "nama",
+                                    "username",
+                                    "email",
+                                    "password",
+                                    "role"
+                                ],
+                                "properties": {
+                                    "nama": {
+                                        "type": "string",
+                                        "example": "Budi Santoso"
+                                    },
+                                    "username": {
+                                        "type": "string",
+                                        "example": "budisantoso"
+                                    },
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "budi@gmail.com"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "password123"
+                                    },
+                                    "role": {
+                                        "type": "string",
+                                        "enum": [
+                                            "ADMIN",
+                                            "PELANGGAN",
+                                            "MERCHANT"
+                                        ],
+                                        "example": "PELANGGAN"
+                                    },
+                                    "foto_profil": {
+                                        "type": "string",
+                                        "format": "binary",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Pendaftaran sukses",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "token": {
+                                            "type": "string",
+                                            "example": "1|abcde..."
+                                        },
+                                        "user": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validasi gagal"
+                    }
+                }
+            }
+        },
+        "/api/login": {
+            "post": {
+                "tags": [
+                    "Autentikasi"
+                ],
+                "summary": "Login user",
+                "description": "Masuk ke aplikasi menggunakan username dan password untuk mendapatkan token JWT.",
+                "operationId": "a3b306d14572d1f4bd6c064b3233e7b8",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "username",
+                                    "password"
+                                ],
+                                "properties": {
+                                    "username": {
+                                        "type": "string",
+                                        "example": "budisantoso"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "password123"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Login berhasil",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "token": {
+                                            "type": "string",
+                                            "example": "1|abcde..."
+                                        },
+                                        "user": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Kredensial salah"
+                    }
+                }
+            }
+        },
+        "/api/auth/google": {
+            "post": {
+                "tags": [
+                    "Autentikasi"
+                ],
+                "summary": "Login via Google",
+                "description": "Masuk atau daftar otomatis menggunakan ID Token dari Google OAuth.",
+                "operationId": "93ac7753bf4596edc151005072fa4b8f",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "id_token"
+                                ],
+                                "properties": {
+                                    "id_token": {
+                                        "description": "Google ID Token",
+                                        "type": "string"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Login berhasil",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "user": {
+                                            "type": "object"
+                                        },
+                                        "token": {
+                                            "type": "string",
+                                            "example": "1|abcde..."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Token tidak valid"
+                    }
+                }
+            }
+        },
+        "/api/logout": {
+            "post": {
+                "tags": [
+                    "Autentikasi"
+                ],
+                "summary": "Logout user",
+                "description": "Menghapus access token saat ini.",
+                "operationId": "fe8f3429cd6979b3b4517e186505f9f9",
+                "responses": {
+                    "200": {
+                        "description": "Logout berhasil",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Logout berhasil"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/me": {
+            "get": {
+                "tags": [
+                    "Autentikasi"
+                ],
+                "summary": "Data user saat ini",
+                "description": "Mendapatkan informasi detail user beserta profilnya berdasarkan token Sanctum.",
+                "operationId": "9d9bc556f927575aa492a88c28fe5908",
+                "responses": {
+                    "200": {
+                        "description": "Berhasil mengambil data",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "id": {
+                                            "type": "integer",
+                                            "example": 1
+                                        },
+                                        "username": {
+                                            "type": "string",
+                                            "example": "budisantoso"
+                                        },
+                                        "email": {
+                                            "type": "string",
+                                            "example": "budi@gmail.com"
+                                        },
+                                        "role": {
+                                            "type": "string",
+                                            "example": "PELANGGAN"
+                                        },
+                                        "profile": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/pesanans": {
+            "get": {
+                "tags": [
+                    "Pesanan"
+                ],
+                "summary": "Daftar pesanan",
+                "description": "Mengambil daftar riwayat pesanan. Pelanggan hanya melihat pesanan miliknya, Merchant hanya melihat pesanan ke tokonya, dan Admin melihat semua.",
+                "operationId": "10a3468ed30d0e7f352e84d91ced8ff6",
+                "responses": {
+                    "200": {
+                        "description": "Berhasil mengambil data",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Pesanan"
+                ],
+                "summary": "Buat pesanan baru",
+                "description": "Hanya pelanggan yang dapat membuat pesanan. Mengurangi stok menu secara otomatis dan membuat transaksi dengan metode pembayaran CASH atau MIDTRANS.",
+                "operationId": "6dd8d55376bf4211203eed581ee5a510",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "merchant_id",
+                                    "items"
+                                ],
+                                "properties": {
+                                    "merchant_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "catatan": {
+                                        "type": "string",
+                                        "example": "Pedas sedang ya",
+                                        "nullable": true
+                                    },
+                                    "nomor_meja": {
+                                        "type": "string",
+                                        "example": "5",
+                                        "nullable": true
+                                    },
+                                    "tipe_pemesanan": {
+                                        "type": "string",
+                                        "enum": [
+                                            "DINE_IN",
+                                            "TAKE_AWAY"
+                                        ],
+                                        "example": "DINE_IN"
+                                    },
+                                    "metode_bayar": {
+                                        "type": "string",
+                                        "enum": [
+                                            "CASH",
+                                            "MIDTRANS"
+                                        ],
+                                        "example": "CASH"
+                                    },
+                                    "items": {
+                                        "type": "array",
+                                        "items": {
+                                            "required": [
+                                                "menu_id",
+                                                "jumlah"
+                                            ],
+                                            "properties": {
+                                                "menu_id": {
+                                                    "type": "integer",
+                                                    "example": 2
+                                                },
+                                                "jumlah": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Pesanan berhasil dibuat",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Stok tidak mencukupi"
+                    },
+                    "403": {
+                        "description": "Hanya pelanggan yang bisa memesan"
+                    },
+                    "422": {
+                        "description": "Validasi gagal"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/pesanans/{id}/status": {
+            "put": {
+                "tags": [
+                    "Pesanan"
+                ],
+                "summary": "Update status pesanan",
+                "description": "Hanya merchant pemilik pesanan yang dapat memperbarui status pesanan. Mengubah status transaksi menjadi LUNAS atau BATAL sesuai status baru.",
+                "operationId": "d5cbbbdf10903c7906511cb799a1f3ed",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID Pesanan",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "status"
+                                ],
+                                "properties": {
+                                    "status": {
+                                        "type": "string",
+                                        "enum": [
+                                            "PENDING",
+                                            "DIPROSES",
+                                            "SELESAI",
+                                            "BATAL"
+                                        ],
+                                        "example": "DIPROSES"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Status berhasil diubah",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Status tidak dapat diubah lagi"
+                    },
+                    "403": {
+                        "description": "Tidak diizinkan"
+                    },
+                    "404": {
+                        "description": "Pesanan tidak ditemukan"
+                    },
+                    "422": {
+                        "description": "Validasi gagal"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/pesanans/{id}/batal": {
+            "put": {
+                "tags": [
+                    "Pesanan"
+                ],
+                "summary": "Batalkan pesanan",
+                "description": "Hanya pelanggan pemilik pesanan yang dapat membatalkan pesanan jika belum SELESAI atau BATAL. Mengkembalikan stok menu yang dipesan.",
+                "operationId": "581e66e323e21c33cfd36b0cb40bfc29",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID Pesanan",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Pesanan berhasil dibatalkan",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Pesanan berhasil dibatalkan"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Pesanan sudah selesai atau batal"
+                    },
+                    "403": {
+                        "description": "Tidak diizinkan"
+                    },
+                    "404": {
+                        "description": "Pesanan tidak ditemukan"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/pesanans/{id}": {
+            "get": {
+                "tags": [
+                    "Pesanan"
+                ],
+                "summary": "Detail pesanan",
+                "description": "Mengambil rincian detail satu pesanan beserta relasinya (pelanggan, merchant, detail pesanan, menu, dan transaksi).",
+                "operationId": "fc4900e18b46ff883ed5eb05562c0fa9",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID Pesanan",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Data berhasil diambil",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "404": {
+                        "description": "Pesanan tidak ditemukan"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        }
+    },
+    "components": {
+        "securitySchemes": {
+            "sanctum": {
+                "type": "http",
+                "description": "Gunakan token Sanctum (auth_token) hasil login untuk mengakses endpoint yang dilindungi",
+                "bearerFormat": "JWT",
+                "scheme": "bearer"
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "Autentikasi",
+            "description": "Autentikasi"
+        },
+        {
+            "name": "Pesanan",
+            "description": "Pesanan"
+        }
+    ]
+}

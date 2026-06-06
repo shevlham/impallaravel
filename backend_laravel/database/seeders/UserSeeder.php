@@ -19,6 +19,7 @@ class UserSeeder extends Seeder
         // =====================
         $admin = User::create([
             'username'    => 'admin',
+            'email'       => 'admin@teleat.com',
             'password'    => Hash::make('admin'),
             'role'        => 'ADMIN',
             'foto_profil' => 'https://res.cloudinary.com/df7jtyyxr/image/upload/v1780393497/profile/xuos4z2f8a9slpnrtatd.png',
@@ -80,6 +81,7 @@ class UserSeeder extends Seeder
         foreach ($merchantData as $data) {
             $user = User::create([
                 'username'    => $data['username'],
+                'email'       => strtolower(str_replace(' ', '', $data['username'])) . '@teleat.com',
                 'password'    => Hash::make('merchant123'),
                 'role'        => 'MERCHANT',
                 'foto_profil' => $data['foto_profil'] ?? null,
@@ -121,6 +123,7 @@ class UserSeeder extends Seeder
         for ($i = 1; $i <= 20; $i++) {
             $user = User::create([
                 'username'    => 'pelanggan' . $i,
+                'email'       => 'pelanggan' . $i . '@gmail.com',
                 'password'    => Hash::make('pelanggan123'),
                 'role'        => 'PELANGGAN',
                 'foto_profil' => $pelangganPhotos[$i] ?? null,
@@ -155,7 +158,7 @@ class UserSeeder extends Seeder
                         'pelanggan_id' => $pelanggan->id,
                         'merchant_id'  => $merchant->id,
                         'status'       => 'SELESAI',
-                        'catatan'      => 'Pesanan dummy',
+                        'catatan'      => 'Ga pake sambel ya',
                         'nomor_meja'   => rand(1, 10),
                         'created_at'   => $date,
                         'updated_at'   => $date,

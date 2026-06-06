@@ -2,7 +2,10 @@ export const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000/a
 export const GOOGLE_CID = process.env.REACT_APP_GOOGLE_CLIENT_ID || "";
 
 export async function apiFetch(method, path, body, token) {
-  const headers = { "Content-Type": "application/json" };
+  const headers = { 
+    "Content-Type": "application/json",
+    "Accept": "application/json"
+  };
   if (token) headers["Authorization"] = `Bearer ${token}`;
   
   const options = {
@@ -21,7 +24,14 @@ export async function apiFetch(method, path, body, token) {
 
   const res = await fetch(API_URL + path, options);
   const data = await res.json();
-  if (!res.ok) throw new Error(data.message || "Request failed");
+  if (!res.ok) {
+    if (res.status === 401) {
+      localStorage.removeItem("te_user");
+      localStorage.removeItem("te_token");
+      window.location.href = "/login";
+    }
+    throw new Error(data.message || "Request failed");
+  }
   return data;
 }
 

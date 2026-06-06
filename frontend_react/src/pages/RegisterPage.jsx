@@ -10,6 +10,20 @@ import Divider from "../components/ui/Divider";
 import GoogleSignInBtn from "../components/ui/GoogleSignInBtn";
 import { BtnRed } from "../components/ui/Button";
 
+const IcBag = ({ size = 24, color = "currentColor" }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+    <line x1="3" y1="6" x2="21" y2="6" />
+    <path d="M16 10a4 4 0 0 1-8 0" />
+  </svg>
+);
+
+const IcStore = ({ size = 24, color = "currentColor" }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="m2 7 4.41-3.67A2 2 0 0 1 7.7 3h8.6a2 2 0 0 1 1.3.33L22 7M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M2 7h20M12 22V12" />
+  </svg>
+);
+
 export default function RegisterPage() {
   const { login } = useAuth();
   const toast = useToast();
@@ -117,19 +131,23 @@ export default function RegisterPage() {
           <label style={labelStyle}>Daftar sebagai</label>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             {[
-              { val: "PELANGGAN", icon: "🛍️", label: "Pelanggan", desc: "Pesan makanan" },
-              { val: "MERCHANT", icon: "🏪", label: "Merchant", desc: "Jual makanan" },
-            ].map(r => (
-              <button type="button" key={r.val} onClick={() => setForm({ ...form, role: r.val })} style={{
-                padding: "14px 10px", border: `2px solid ${form.role === r.val ? C.blue : C.gray200}`,
-                borderRadius: 12, background: form.role === r.val ? C.blueLight : C.white,
-                cursor: "pointer", textAlign: "center", transition: "all .2s",
-              }}>
-                <div style={{ fontSize: 24, marginBottom: 4 }}>{r.icon}</div>
-                <div style={{ fontWeight: 700, fontSize: 13, color: form.role === r.val ? C.blue : C.gray900 }}>{r.label}</div>
-                <div style={{ fontSize: 11, color: C.gray400, marginTop: 2 }}>{r.desc}</div>
-              </button>
-            ))}
+              { val: "PELANGGAN", icon: active => <IcBag color={active ? C.blue : C.gray400} />, label: "Pelanggan", desc: "Pesan makanan" },
+              { val: "MERCHANT", icon: active => <IcStore color={active ? C.blue : C.gray400} />, label: "Merchant", desc: "Jual makanan" },
+            ].map(r => {
+              const active = form.role === r.val;
+              return (
+                <button type="button" key={r.val} onClick={() => setForm({ ...form, role: r.val })} style={{
+                  padding: "14px 10px", border: `2px solid ${active ? C.blue : C.gray200}`,
+                  borderRadius: 12, background: active ? C.blueLight : C.white,
+                  cursor: "pointer", textAlign: "center", transition: "all .2s",
+                  display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center"
+                }}>
+                  <div style={{ marginBottom: 6, display: "flex", alignItems: "center", justifyContent: "center" }}>{r.icon(active)}</div>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: active ? C.blue : C.gray900 }}>{r.label}</div>
+                  <div style={{ fontSize: 11, color: C.gray400, marginTop: 2 }}>{r.desc}</div>
+                </button>
+              );
+            })}
           </div>
         </div>
 

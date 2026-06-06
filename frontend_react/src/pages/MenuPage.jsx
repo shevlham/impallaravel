@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { C } from "../styles/tokens";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../contexts/ToastContext";
-import { apiFetch, API_URL } from "../services/api";
+import { apiFetch } from "../services/api";
 import Spinner from "../components/ui/Spinner";
 import Empty from "../components/ui/Empty";
 import Modal from "../components/ui/Modal";
@@ -89,7 +89,7 @@ export default function
   const [orderNote, setOrderNote] = useState("");
   const [showNote, setShowNote] = useState(false);
   const [statusToko, setStatusToko] = useState('BUKA');
-  const [tokoLoading, setTokoLoading] = useState(false);
+
   const [searchParams] = useSearchParams();
   const [tipePemesanan, setTipePemesanan] = useState("DINE_IN");
 
@@ -122,6 +122,13 @@ export default function
     .filter(m => filterKategori === "Semua" || m.kategori === filterKategori)
     .filter(m => filterToko === "Semua" || m.merchant_id === filterToko);
 
+  /**
+   * Menyimpan atau memperbarui data menu makanan/minuman ke server.
+   * Melakukan validasi input di tingkat client (nama, harga, stok, gambar) sebelum mengirim request.
+   * 
+   * @param {Event} e - Event form submit
+   * @returns {Promise<void>}
+   */
   const saveMenu = async e => {
     e.preventDefault();
     // 1. Validasi Nama Menu
@@ -192,7 +199,7 @@ export default function
         ? `/admin/menus/${editId}` 
         : (editId ? `/menus/${editId}` : "/menus");
 
-      const res = await apiFetch(
+      await apiFetch(
         "POST",
         endpoint,
         fd,
@@ -208,6 +215,13 @@ export default function
     }
   };
 
+  /**
+   * Menghapus menu makanan berdasarkan ID menu yang diberikan.
+   * Meminta konfirmasi dari pengguna sebelum mengeksekusi penghapusan.
+   * 
+   * @param {number} id - ID Menu yang ingin dihapus
+   * @returns {Promise<void>}
+   */
   const delMenu = async id => {
     if (!window.confirm("Hapus menu ini?")) return;
     try {
@@ -220,6 +234,16 @@ export default function
     }
   };
 
+  /**
+   * Menambahkan item menu ke keranjang belanja (cart) pelanggan.
+   * Memeriksa ketersediaan stok menu sebelum menambahkannya.
+   * 
+   * @param {Object} m - Objek menu yang akan ditambahkan
+   * @param {number} m.id - ID Menu
+   * @param {string} m.nama_menu - Nama Menu
+   * @param {number} m.stok - Stok Menu yang tersedia
+   * @returns {void}
+   */
   const addCart = (m) => {
     const stokTersedia = Number(m.stok);
     const existingItem = cart.find(c => c.id === m.id);
@@ -240,6 +264,14 @@ export default function
     toast(`${m.nama_menu} ditambahkan 🛒`);
   };
 
+  /**
+   * Mengubah jumlah item (quantity) menu tertentu di keranjang belanja.
+   * Mencegah penambahan jika melebihi stok yang tersedia.
+   * 
+   * @param {number} id - ID Menu yang ada di keranjang
+   * @param {number} delta - Selisih perubahan qty (1 untuk tambah, -1 untuk kurang)
+   * @returns {void}
+   */
   const changeQty = (id, delta) => {
     setCart(p => p.map(c => {
       if (c.id !== id) return c;
@@ -258,6 +290,13 @@ export default function
   const totalCart = cart.reduce((s, c) => s + Number(c.harga) * c.qty, 0);
   const cartCount = cart.reduce((s, c) => s + c.qty, 0);
 
+  /**
+   * Mengirim pesanan (checkout) dari keranjang belanja.
+   * Memproses pesanan per merchant secara terpisah (jika ada beberapa merchant berbeda di keranjang).
+   * Menangani redirect ke gerbang pembayaran online (Midtrans) jika menggunakan metode pembayaran non-CASH.
+   * 
+   * @returns {Promise<void>}
+   */
   const submitOrder = async () => {
     if (!cart.length) return;
     try {
@@ -290,13 +329,13 @@ export default function
       } else {
         // Jika metode bayar online (QRIS / TRANSFER), buat snap token Midtrans dan panggil snap
         try {
-          const primaryOrder = orders[0];
           const email = user?.email || "customer@teleat.com";
 
           toast("Menghubungi Midtrans... 💳");
 
           const payRes = await apiFetch("POST", "/payment/create", {
-            order_id: primaryOrder.id,
+            order_id: orders[0].id,
+            order_ids: orders.map(o => o.id),
             email: email
           }, token);
 
@@ -336,6 +375,12 @@ export default function
   };
 
 
+  /**
+   * Memuat status buka/tutup toko merchant saat ini dari server.
+   * Hanya dijalankan jika user yang login memiliki role MERCHANT.
+   * 
+   * @returns {Promise<void>}
+   */
   const loadStatusToko = useCallback(async () => {
     if (!isMerchant) return;
     try {
@@ -814,11 +859,6 @@ export default function
             <span style={{ fontSize: 12, fontWeight: 600, color: C.gray800 }}>Rp{totalCart.toLocaleString("id-ID")}</span>
           </div>
 
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-            <span style={{ fontSize: 12, color: C.gray600 }}>Pembulatan</span>
-            <span style={{ fontSize: 12, fontWeight: 600, color: C.gray800 }}>-Rp{Math.floor(totalCart % 1000).toLocaleString("id-ID")}</span>
-          </div>
-
           <div style={{
             display: "flex",
             justifyContent: "space-between",
@@ -828,7 +868,7 @@ export default function
           }}>
             <span style={{ fontWeight: 800, fontSize: 14, color: C.gray900 }}>Total</span>
             <span style={{ fontWeight: 900, fontSize: 16, color: C.red }}>
-              Rp{(totalCart - Math.floor(totalCart % 1000)).toLocaleString("id-ID")}
+              Rp{totalCart.toLocaleString("id-ID")}
             </span>
           </div>
         </div>
@@ -876,7 +916,7 @@ export default function
           <div>
             <div style={{ fontSize: 12, color: C.gray500 }}>Total Pembayaran</div>
             <div style={{ fontWeight: 900, fontSize: 20, color: C.red }}>
-              Rp{(totalCart - Math.floor(totalCart % 1000)).toLocaleString("id-ID")}
+              Rp{totalCart.toLocaleString("id-ID")}
             </div>
           </div>
           <BtnRed onClick={submitOrder} style={{ padding: "12px 24px", fontSize: 14 }}>

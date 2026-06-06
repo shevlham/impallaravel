@@ -8,6 +8,7 @@
     "require": {
         "php": "^8.2",
         "cloudinary-labs/cloudinary-laravel": "^3.0",
+        "darkaonline/l5-swagger": "8.6",
         "doctrine/dbal": "^4.4",
         "laravel/framework": "^11.0",
         "laravel/sanctum": "^4.3",
