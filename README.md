@@ -53,7 +53,6 @@ TelEat_TubesIMPAL/
 │       ├── services/         # Integrasi API (axios wrapper)
 │       └── styles/           # Sistem pewarnaan & layouting (tokens.js)
 │
-├── issue.md                  # Rencana pengembangan awal
 └── README.md                 # Dokumentasi sistem (Dokumen Ini)
 ```
 
