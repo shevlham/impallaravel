@@ -28,7 +28,7 @@ export default function RegisterPage() {
   const { login } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ nama: "", username: "", password: "", role: "PELANGGAN", foto_profil: null });
+  const [form, setForm] = useState({ nama: "", username: "", email: "", password: "", role: "PELANGGAN", foto_profil: null });
   const [loading, setLoading] = useState(false);
 
   const submit = async e => {
@@ -51,6 +51,16 @@ export default function RegisterPage() {
     }
     if (form.username.includes(' ')) {
       toast("Username tidak boleh mengandung spasi", "error");
+      return;
+    }
+
+    // Validasi Email
+    if (!form.email || form.email.trim().length === 0) {
+      toast("Email wajib diisi", "error");
+      return;
+    }
+    if (!form.email.includes('@') || !form.email.includes('.')) {
+      toast("Email tidak valid", "error");
       return;
     }
 
@@ -91,6 +101,7 @@ export default function RegisterPage() {
       const fd = new FormData();
       fd.append("nama", form.nama);
       fd.append("username", form.username);
+      fd.append("email", form.email);
       fd.append("password", form.password);
       fd.append("role", form.role);
       if (form.foto_profil) {
@@ -119,6 +130,8 @@ export default function RegisterPage() {
           value={form.nama} onChange={e => setForm({ ...form, nama: e.target.value })} required />
         <Inp label="Username" placeholder="Username kamu"
           value={form.username} onChange={e => setForm({ ...form, username: e.target.value })} required />
+        <Inp label="Email" placeholder="Email kamu"
+          value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required />
         <Inp label="Password" type="password" placeholder="Min. 6 karakter"
           value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} required />
 

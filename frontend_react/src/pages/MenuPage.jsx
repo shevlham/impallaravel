@@ -318,7 +318,7 @@ export default function
         orders.push(res.data);
       }
 
-      toast("Pesanan berhasil dibuat! 🎉");
+      toast("Pesanan berhasil dibuat!");
       setCart([]);
       setOrderModal(false);
 
@@ -331,7 +331,7 @@ export default function
         try {
           const email = user?.email || "customer@teleat.com";
 
-          toast("Menghubungi Midtrans... 💳");
+          toast("Proses Pembayaran...");
 
           const payRes = await apiFetch("POST", "/payment/create", {
             order_id: orders[0].id,
@@ -340,7 +340,6 @@ export default function
           }, token);
 
           if (payRes.snap_token) {
-            toast("Membuka gerbang pembayaran... 🚀");
             window.snap.pay(payRes.snap_token, {
               onSuccess: function(result){
                 toast("Pembayaran berhasil!");
